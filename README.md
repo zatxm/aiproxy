@@ -5,4 +5,5 @@ golang ai any proxy，一看就会一看就懂
 * 安装，配置文件实例在etc/c.yaml<br>
   git clone https://github.com/zatxm/any-proxy<br>
   cd any-proxy<br>
-  ./any-proxy -c /whereis/c.yaml<br>
+  go build cmd/main.go<br>
+  ./any-proxy -c /whereis/c.yaml

@@ -16,8 +16,6 @@ func Do(cfg *config.Config) func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		path := "/v1beta/" + c.Get("path")
 		urlParse := c.Request().Req().URL
-		urlQuery := urlParse.Query()
-		key := urlQuery.Get("key")
 		q := urlParse.RawQuery
 		var queryBuilder strings.Builder
 		if q == "" {
@@ -25,6 +23,8 @@ func Do(cfg *config.Config) func(*fhblade.Context) error {
 			queryBuilder.WriteString(cfg.Gemini.ApiKey)
 		} else {
 			queryBuilder.WriteString(q)
+			urlQuery := urlParse.Query()
+			key := urlQuery.Get("key")
 			if key == "" {
 				queryBuilder.WriteString("&")
 				queryBuilder.WriteString("key=")

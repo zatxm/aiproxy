@@ -62,10 +62,10 @@ func main() {
 	app.Post("/auth/tks/platform", auth.DoPlatformTks(cfg))
 
 	// refresh platform token
-	app.Post("/token/platform/refresh", auth.DoPlatformRefresh(cfg))
+	app.Post("/auth/token/platform/refresh", auth.DoPlatformRefresh(cfg))
 
 	// revoke platform token
-	app.Post("/token/platform/revoke", auth.DoPlatformRevoke(cfg))
+	app.Post("/auth/token/platform/revoke", auth.DoPlatformRevoke(cfg))
 
 	// get arkose token
 	app.Post("/arkose/token/:pk", solve.DoAkToken())

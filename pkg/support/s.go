@@ -1,6 +1,8 @@
 package support
 
 import (
+	crand "crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"net/url"
@@ -29,4 +31,10 @@ func StructToFormByJson(data interface{}) string {
 		form.Add(k, fmt.Sprintf("%v", bMap[k]))
 	}
 	return form.Encode()
+}
+
+func RandHex(len int) string {
+	b := make([]byte, len)
+	crand.Read(b)
+	return hex.EncodeToString(b)
 }

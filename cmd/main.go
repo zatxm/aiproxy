@@ -8,6 +8,7 @@ import (
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/arkose/har"
 	"github.com/zatxm/any-proxy/internal/arkose/solve"
+	"github.com/zatxm/any-proxy/internal/bing"
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/gemini"
@@ -48,6 +49,10 @@ func main() {
 	app.Get("/ping", func(c *fhblade.Context) error {
 		return c.JSONAndStatus(http.StatusOK, fhblade.H{"ping": "ok"})
 	})
+
+	// bing
+	app.Post("/bing/conversation", bing.DoCreateConversation(cfg))
+	app.Post("/bing/sendMessage", bing.DoSendMessage(cfg))
 
 	// google gemini
 	app.Any("/gemini/*path", gemini.Do(cfg))

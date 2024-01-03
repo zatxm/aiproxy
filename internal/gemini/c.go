@@ -14,7 +14,7 @@ import (
 
 func Do(cfg *config.Config) func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		path := "/v1beta/" + c.Get("path")
+		path := "/" + cfg.Gemini.ApiVersion + "/" + c.Get("path")
 		urlParse := c.Request().Req().URL
 		q := urlParse.RawQuery
 		var queryBuilder strings.Builder

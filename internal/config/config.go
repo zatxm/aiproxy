@@ -13,6 +13,7 @@ type Config struct {
 	ProxyUrl  string    `yaml:"proxy_url"`
 	Gemini    gemini    `yaml:"google_gemini"`
 	Arkose    arkose    `yaml:"arkose"`
+	Bing      bing      `yaml:"bing"`
 }
 
 type httpsInfo struct {
@@ -32,6 +33,10 @@ type arkose struct {
 	ClientArkoselabsUrl string `yaml:"client_arkoselabs_url"`
 	PicSavePath         string `yaml:"pic_save_path"`
 	SolveApiUrl         string `yaml:"solve_api_url"`
+}
+
+type bing struct {
+	ProxyUrl string `yaml:"proxy_url"`
 }
 
 func Parse(filename string) (*Config, error) {

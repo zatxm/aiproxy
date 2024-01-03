@@ -34,3 +34,8 @@ arkose:
     # 解决验证码通信url,可自主搭建处理接码平台
     # 优先用har获取,没有sup=1就需要解决验证码
     solve_api_url: http://127.0.0.1:9118/do
+
+# bing设置
+bing:
+    # 测试发现美国代理比较合适
+    proxy_url: http://127.0.0.1:1081

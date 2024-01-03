@@ -322,23 +322,24 @@ func DoSendMessage() func(*fhblade.Context) error {
 
 		splitByte := []byte{WsDelimiterByte}
 		endByteTag := []byte(`{"type":3`)
-		done := make(chan struct{})
+		cancle := make(chan struct{})
 		// 处理返回数据
 		go func() {
-			defer close(done)
 			for {
 				_, msg, err := wc.ReadMessage()
 				if err != nil {
 					fhblade.Log.Error("bing DoSendMessage() wc read err", zap.Error(err))
-					fmt.Fprint(rw, "data: [DONE]\n\n")
-					flusher.Flush()
+					close(cancle)
 					return
 				}
 				msgArr := bytes.Split(msg, splitByte)
 				for k := range msgArr {
 					if len(msgArr[k]) > 0 {
 						if bytes.HasPrefix(msgArr[k], endByteTag) {
-							close(done)
+							fmt.Fprint(rw, "data: [DONE]\n\n")
+							flusher.Flush()
+							close(cancle)
+							return
 						} else {
 							fmt.Fprintf(rw, "data: %s\n\n", msgArr[k])
 							flusher.Flush()
@@ -366,10 +367,11 @@ func DoSendMessage() func(*fhblade.Context) error {
 		defer timer.Stop()
 		for {
 			select {
-			case <-done:
+			case <-cancle:
 				wc.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				return nil
 			case <-timer.C:
+				close(cancle)
 				wc.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				return nil
 			}

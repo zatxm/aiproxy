@@ -301,7 +301,7 @@ func DoSendMessage() func(*fhblade.Context) error {
 		headers.Set("Origin", "https://www.bing.com")
 		headers.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.69")
 		fhblade.Log.Debug("wss url", zap.String("url", u.String()))
-		wc, _, err := dialer.Dial(u.String(), nil)
+		wc, _, err := dialer.Dial(u.String(), headers)
 		if err != nil {
 			fhblade.Log.Error("bing DoSendMessage() wc req err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})

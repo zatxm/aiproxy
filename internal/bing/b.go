@@ -320,6 +320,8 @@ func DoSendMessage() func(*fhblade.Context) error {
 		header.Set("Access-Control-Allow-Origin", "*")
 		rw.WriteHeader(200)
 
+		splitByte := []byte{WsDelimiterByte}
+		endByteTag := []byte(`{"type":3`)
 		done := make(chan struct{})
 		// 处理返回数据
 		go func() {
@@ -332,9 +334,17 @@ func DoSendMessage() func(*fhblade.Context) error {
 					flusher.Flush()
 					return
 				}
-				fhblade.Log.Debug("reciv", zap.ByteString("data", msg))
-				fmt.Fprintf(rw, "data: %s\n\n", msg)
-				flusher.Flush()
+				msgArr := bytes.Split(msg, splitByte)
+				for k := range msgArr {
+					if len(msgArr[k]) > 0 {
+						if bytes.HasPrefix(msgArr[k], endByteTag) {
+							close(done)
+						} else {
+							fmt.Fprintf(rw, "data: %s\n\n", msgArr[k])
+							flusher.Flush()
+						}
+					}
+				}
 			}
 		}()
 
@@ -357,8 +367,7 @@ func DoSendMessage() func(*fhblade.Context) error {
 		for {
 			select {
 			case <-done:
-				// fmt.Fprint(rw, "data: [DONE]\n\n")
-				// flusher.Flush()
+				wc.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				return nil
 			case <-timer.C:
 				wc.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))

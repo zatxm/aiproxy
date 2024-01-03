@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func DoToken(pk string, cfg *config.Config) (string, error) {
+func DoToken(pk string) (string, error) {
 	arkoseToken, err := GetTokenByPk(pk)
 	if err == nil {
 		return arkoseToken, nil
@@ -31,7 +31,8 @@ func DoToken(pk string, cfg *config.Config) (string, error) {
 	sessionToken := fields[0]
 	sid := strings.Split(fields[1], "=")[1]
 	hSession := strings.Replace(arkoseToken, "|", "&", -1)
-	s := funcaptcha.NewArkoseSession(sid, sessionToken, hSession, cfg.Arkose.GameCoreVersion)
+	s := funcaptcha.NewArkoseSession(sid, sessionToken, hSession)
+	cfg := config.V()
 	s.Loged("", 0, "Site URL", cfg.Arkose.ClientArkoselabsUrl)
 
 	// 生成验证图片
@@ -47,7 +48,7 @@ func DoToken(pk string, cfg *config.Config) (string, error) {
 	}
 
 	// 解决验证码
-	answerIndexs, err := solveServiceDo(cfg, imgs)
+	answerIndexs, err := solveServiceDo(imgs)
 	if err != nil {
 		fhblade.Log.Error("service solve error", zap.Error(err))
 		return "", err
@@ -69,9 +70,9 @@ func DoToken(pk string, cfg *config.Config) (string, error) {
 }
 
 // 解决验证码，自己编写接码平台等
-func solveServiceDo(cfg *config.Config, imgs []string) ([]int, error) {
+func solveServiceDo(imgs []string) ([]int, error) {
 	gClient := client.Tls()
-	solveApiUrl := cfg.Arkose.SolveApiUrl
+	solveApiUrl := config.V().Arkose.SolveApiUrl
 	l := len(imgs)
 	rChan := make(chan map[string]interface{}, l)
 	defer close(rChan)

@@ -11,6 +11,7 @@ import (
 
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/arkose"
+	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/pkg/jscrypt"
 	"github.com/zatxm/fhblade"
 )
@@ -61,9 +62,10 @@ func GetArkoseDatas() [][]HarData {
 	return arkoseDatas
 }
 
-func Parse(harDirPath string) ([][]HarData, error) {
+func Parse() ([][]HarData, error) {
 	arkoseDatas = make([][]HarData, 3)
 	var harPath []string
+	harDirPath := config.V().HarsPath
 	err := filepath.Walk(harDirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

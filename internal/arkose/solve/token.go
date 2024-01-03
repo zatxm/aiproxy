@@ -12,7 +12,6 @@ import (
 	"github.com/zatxm/any-proxy/internal/arkose"
 	"github.com/zatxm/any-proxy/internal/arkose/har"
 	"github.com/zatxm/any-proxy/internal/client"
-	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/pkg/jscrypt"
 	"github.com/zatxm/any-proxy/pkg/support"
 	"github.com/zatxm/fhblade"
@@ -34,10 +33,10 @@ func DoAkToken() func(*fhblade.Context) error {
 	}
 }
 
-func DoSolveToken(cfg *config.Config) func(*fhblade.Context) error {
+func DoSolveToken() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		pk := c.Get("pk")
-		arkoseToken, err := DoToken(pk, cfg)
+		arkoseToken, err := DoToken(pk)
 		if err != nil {
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
 		}

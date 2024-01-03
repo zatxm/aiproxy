@@ -8,7 +8,6 @@ import (
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/arkose/solve"
 	"github.com/zatxm/any-proxy/internal/client"
-	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/fhblade"
 	tlsClient "github.com/zatxm/tls-client"
@@ -36,7 +35,7 @@ type csrfResJson struct {
 	Token string `json:"csrfToken"`
 }
 
-func DoWeb(cfg *config.Config) func(*fhblade.Context) error {
+func DoWeb() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		var p authTokenParams
 		if err := c.ShouldBindJSON(&p); err != nil {
@@ -127,7 +126,7 @@ func DoWeb(cfg *config.Config) func(*fhblade.Context) error {
 		}
 
 		// arkose token
-		arkoseToken, err := solve.DoToken("0A1D34FC-659D-4E23-B17B-694DCFCF6A6C", cfg)
+		arkoseToken, err := solve.DoToken("0A1D34FC-659D-4E23-B17B-694DCFCF6A6C")
 		if err != nil {
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": "Arkose token error"})
 		}

@@ -35,10 +35,10 @@ func main() {
 	}
 
 	// parse init http client
-	client.Parse(cfg)
+	client.Parse()
 
 	// parse har
-	_, err = har.Parse(cfg.HarsPath)
+	_, err = har.Parse()
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -51,32 +51,32 @@ func main() {
 	})
 
 	// bing
-	app.Post("/bing/conversation", bing.DoCreateConversation(cfg))
-	app.Post("/bing/sendMessage", bing.DoSendMessage(cfg))
+	app.Post("/bing/conversation", bing.DoCreateConversation())
+	app.Post("/bing/sendMessage", bing.DoSendMessage())
 
 	// google gemini
-	app.Any("/gemini/*path", gemini.Do(cfg))
+	app.Any("/gemini/*path", gemini.Do())
 
 	// web login token
-	app.Post("/auth/token/web", auth.DoWeb(cfg))
+	app.Post("/auth/token/web", auth.DoWeb())
 
 	// platform login token
-	app.Post("/auth/token/platform", auth.DoPlatformToken(cfg))
+	app.Post("/auth/token/platform", auth.DoPlatformToken())
 
 	// platform login token and session
-	app.Post("/auth/tks/platform", auth.DoPlatformTks(cfg))
+	app.Post("/auth/tks/platform", auth.DoPlatformTks())
 
 	// refresh platform token
-	app.Post("/auth/token/platform/refresh", auth.DoPlatformRefresh(cfg))
+	app.Post("/auth/token/platform/refresh", auth.DoPlatformRefresh())
 
 	// revoke platform token
-	app.Post("/auth/token/platform/revoke", auth.DoPlatformRevoke(cfg))
+	app.Post("/auth/token/platform/revoke", auth.DoPlatformRevoke())
 
 	// get arkose token
 	app.Post("/arkose/token/:pk", solve.DoAkToken())
 
 	// arkose token image
-	app.Post("/arkose/solve/:pk", solve.DoSolveToken(cfg))
+	app.Post("/arkose/solve/:pk", solve.DoSolveToken())
 
 	// proxy /public-api/*
 	app.Any("/public-api/*path", oapi.DoWeb("public-api"))

@@ -198,9 +198,9 @@ type imgBlob struct {
 	ProcessedBlobId string `json:"processedBlobId"`
 }
 
-func DoCreateConversation(cfg *config.Config) func(*fhblade.Context) error {
+func DoCreateConversation() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		conversation, err := createConversation(cfg)
+		conversation, err := createConversation()
 		if err != nil {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
 		}
@@ -208,7 +208,7 @@ func DoCreateConversation(cfg *config.Config) func(*fhblade.Context) error {
 	}
 }
 
-func DoSendMessage(cfg *config.Config) func(*fhblade.Context) error {
+func DoSendMessage() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		var p sendMessageParams
 		if err := c.ShouldBindJSON(&p); err != nil {
@@ -216,7 +216,7 @@ func DoSendMessage(cfg *config.Config) func(*fhblade.Context) error {
 		}
 		// 没有的话先创建会话
 		if p.Conversation == nil {
-			conversation, err := createConversation(cfg)
+			conversation, err := createConversation()
 			if err != nil {
 				return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
 			}
@@ -225,6 +225,7 @@ func DoSendMessage(cfg *config.Config) func(*fhblade.Context) error {
 		if p.Tone == "" {
 			p.Tone = DefaultTone
 		}
+		bingHttpClient()
 		// 处理图片
 		if p.ImageBase64 != "" {
 			cookies := DefaultCookies
@@ -284,10 +285,13 @@ func DoSendMessage(cfg *config.Config) func(*fhblade.Context) error {
 			RawQuery: urlParams.Encode(),
 		}
 		dialer := websocket.DefaultDialer
-		if cfg.Bing.ProxyUrl != "" {
-			proxyURL, err := url.Parse(cfg.Bing.ProxyUrl)
+		proxyCfgUrl := config.V().Bing.ProxyUrl
+		if proxyCfgUrl != "" {
+			proxyURL, err := url.Parse(proxyCfgUrl)
 			if err != nil {
-				fhblade.Log.Error("bing DoSendMessage() set proxy err", zap.Error(err))
+				fhblade.Log.Error("bing DoSendMessage() set proxy err",
+					zap.Error(err),
+					zap.String("url", proxyCfgUrl))
 				return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
 			}
 			dialer.Proxy = ohttp.ProxyURL(proxyURL)
@@ -364,7 +368,7 @@ func DoSendMessage(cfg *config.Config) func(*fhblade.Context) error {
 	}
 }
 
-func createConversation(cfg *config.Config) (*conversationObj, error) {
+func bingHttpClient() error {
 	if &gClient == nil {
 		gClient, err := tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), []tlsClient.HttpClientOption{
 			tlsClient.WithTimeoutSeconds(600),
@@ -372,13 +376,18 @@ func createConversation(cfg *config.Config) (*conversationObj, error) {
 		}...)
 		if err != nil {
 			fhblade.Log.Error("bing createConversation() init http client err", zap.Error(err))
-			return nil, err
+			return err
 		}
-		if cfg.Bing.ProxyUrl != "" {
-			gClient.SetProxy(cfg.Bing.ProxyUrl)
+		proxyUrl := config.V().Bing.ProxyUrl
+		if proxyUrl != "" {
+			gClient.SetProxy(proxyUrl)
 		}
 	}
+	return nil
+}
 
+func createConversation() (*conversationObj, error) {
+	bingHttpClient()
 	cookies := DefaultCookies
 	cookies = append(cookies, fmt.Sprintf("SRCHHPGUSR=HV=%d", time.Now().Unix()))
 	cookiesStr := strings.Join(cookies, "; ")

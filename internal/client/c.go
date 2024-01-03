@@ -14,7 +14,7 @@ var (
 	defaultTimeoutSeconds = 600
 )
 
-func Parse(cfg *config.Config) error {
+func Parse() error {
 	var err error
 	tlsclientg, err = tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), []tlsClient.HttpClientOption{
 		tlsClient.WithTimeoutSeconds(defaultTimeoutSeconds),
@@ -33,9 +33,10 @@ func Parse(cfg *config.Config) error {
 		fhblade.Log.Error("tlsclientgWithCookie error", zap.Error(err))
 		return err
 	}
-	if cfg.ProxyUrl != "" {
-		tlsclientg.SetProxy(cfg.ProxyUrl)
-		tlsclientgWithCookie.SetProxy(cfg.ProxyUrl)
+	proxyUrl := config.V().ProxyUrl
+	if proxyUrl != "" {
+		tlsclientg.SetProxy(proxyUrl)
+		tlsclientgWithCookie.SetProxy(proxyUrl)
 	}
 	return nil
 }

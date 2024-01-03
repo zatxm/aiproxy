@@ -8,7 +8,6 @@ import (
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/arkose/solve"
 	"github.com/zatxm/any-proxy/internal/client"
-	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/fhblade"
 	tlsClient "github.com/zatxm/tls-client"
@@ -33,14 +32,14 @@ type tokenRefreshParams struct {
 }
 
 // token
-func DoPlatformToken(cfg *config.Config) func(*fhblade.Context) error {
+func DoPlatformToken() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		var p authTokenParams
 		if err := c.ShouldBindJSON(&p); err != nil {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
 		}
 
-		resp, err := getPlatformAuthToken(&p, cfg)
+		resp, err := getPlatformAuthToken(&p)
 		if err != nil {
 			fhblade.Log.Error("getPlatformAuthToken err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
@@ -51,14 +50,14 @@ func DoPlatformToken(cfg *config.Config) func(*fhblade.Context) error {
 }
 
 // token and session
-func DoPlatformTks(cfg *config.Config) func(*fhblade.Context) error {
+func DoPlatformTks() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		var p authTokenParams
 		if err := c.ShouldBindJSON(&p); err != nil {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
 		}
 
-		resp, err := getPlatformAuthToken(&p, cfg)
+		resp, err := getPlatformAuthToken(&p)
 		if err != nil {
 			fhblade.Log.Error("getPlatformAuthToken err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
@@ -119,7 +118,7 @@ func DoPlatformSession() func(*fhblade.Context) error {
 }
 
 // token refresh
-func DoPlatformRefresh(cfg *config.Config) func(*fhblade.Context) error {
+func DoPlatformRefresh() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		var p tokenRefreshParams
 		if err := c.ShouldBindJSON(&p); err != nil {
@@ -147,7 +146,7 @@ func DoPlatformRefresh(cfg *config.Config) func(*fhblade.Context) error {
 }
 
 // refresh token revoke
-func DoPlatformRevoke(cfg *config.Config) func(*fhblade.Context) error {
+func DoPlatformRevoke() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		var p tokenRefreshParams
 		if err := c.ShouldBindJSON(&p); err != nil {
@@ -173,7 +172,7 @@ func DoPlatformRevoke(cfg *config.Config) func(*fhblade.Context) error {
 }
 
 // get platform login token
-func getPlatformAuthToken(p *authTokenParams, cfg *config.Config) (*http.Response, error) {
+func getPlatformAuthToken(p *authTokenParams) (*http.Response, error) {
 	gClient := client.TlsWithCookie()
 	gClient.SetCookieJar(tlsClient.NewCookieJar())
 
@@ -229,7 +228,7 @@ func getPlatformAuthToken(p *authTokenParams, cfg *config.Config) (*http.Respons
 	}
 
 	// arkose token
-	arkoseToken, err := solve.DoToken("0A1D34FC-659D-4E23-B17B-694DCFCF6A6C", cfg)
+	arkoseToken, err := solve.DoToken("0A1D34FC-659D-4E23-B17B-694DCFCF6A6C")
 	if err != nil {
 		fhblade.Log.Error("solve arkose challenge err", zap.Error(err))
 		return nil, errors.New("Arkose token error")

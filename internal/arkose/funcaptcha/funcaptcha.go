@@ -10,6 +10,7 @@ import (
 
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/client"
+	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/pkg/jscrypt"
 	"github.com/zatxm/any-proxy/pkg/support"
 	"github.com/zatxm/fhblade"
@@ -328,12 +329,12 @@ func (a *ArkoseSession) Loged(gameToken string, gameType int, category, action s
 	return nil
 }
 
-func NewArkoseSession(sid, sessionToken, hSession, gameCoreVersion string) *ArkoseSession {
+func NewArkoseSession(sid, sessionToken, hSession string) *ArkoseSession {
 	a := &ArkoseSession{
 		Sid:          sid,
 		SessionToken: sessionToken,
 		Headers:      ArkoseHeaders}
-	a.Headers.Set("Referer", "https://client-api.arkoselabs.com/fc/assets/ec-game-core/game-core/"+gameCoreVersion+"/standard/index.html?session="+hSession)
+	a.Headers.Set("Referer", "https://client-api.arkoselabs.com/fc/assets/ec-game-core/game-core/"+config.V().Arkose.GameCoreVersion+"/standard/index.html?session="+hSession)
 	a.ChallengeLogger = ArkoseChallengeLogger{
 		Sid:           sid,
 		SessionToken:  sessionToken,

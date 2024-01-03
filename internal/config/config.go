@@ -6,6 +6,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var cfg *Config
+
 type Config struct {
 	Port      string    `yaml:"port"`
 	HttpsInfo httpsInfo `yaml:"https_info"`
@@ -39,8 +41,11 @@ type bing struct {
 	ProxyUrl string `yaml:"proxy_url"`
 }
 
+func V() *Config {
+	return cfg
+}
+
 func Parse(filename string) (*Config, error) {
-	cfg := &Config{}
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err

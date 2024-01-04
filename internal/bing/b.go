@@ -39,7 +39,8 @@ var (
 		"SUID=",
 		"SRCHUSR=",
 	}
-	DefaultHeaders = http.Header{
+	DefaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.69"
+	DefaultHeaders   = http.Header{
 		"accept":                      {"*/*"},
 		"accept-language":             {"en-US,en;q=0.9"},
 		"cache-control":               {"max-age=0"},
@@ -57,7 +58,7 @@ var (
 		"sec-fetch-site":              {"none"},
 		"sec-fetch-user":              {"?1"},
 		"upgrade-insecure-requests":   {"1"},
-		"user-agent":                  {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.69"},
+		"user-agent":                  {DefaultUserAgent},
 		"x-edge-shopping-flag":        {"1"},
 	}
 	OptionDefaultSets = []string{
@@ -110,6 +111,9 @@ var (
 	ImageUploadRefererUrl         = "https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx"
 	ImageUrl                      = "https://www.bing.com/images/blob?bcid="
 	ImageUploadApiUrl             = "https://www.bing.com/images/kblob"
+	WssScheme                     = "wss"
+	WssHost                       = "sydney.bing.com"
+	WssPath                       = "/sydney/ChatHub"
 )
 
 type conversationObj struct {
@@ -279,9 +283,9 @@ func DoSendMessage() func(*fhblade.Context) error {
 
 		urlParams := url.Values{"sec_access_token": {p.Conversation.Signature}}
 		u := url.URL{
-			Scheme:   "wss",
-			Host:     "sydney.bing.com",
-			Path:     "/sydney/ChatHub",
+			Scheme:   WssScheme,
+			Host:     WssHost,
+			Path:     WssPath,
 			RawQuery: urlParams.Encode(),
 		}
 		dialer := websocket.DefaultDialer
@@ -297,9 +301,12 @@ func DoSendMessage() func(*fhblade.Context) error {
 			dialer.Proxy = ohttp.ProxyURL(proxyURL)
 		}
 		headers := make(ohttp.Header)
-		headers.Set("Host", "sydney.bing.com")
-		headers.Set("Origin", "https://www.bing.com")
-		headers.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.69")
+		headers.Set("Origin", OriginUrl)
+		headers.Set("User-Agent", DefaultUserAgent)
+		cookies := DefaultCookies
+		cookies = append(cookies, fmt.Sprintf("SRCHHPGUSR=HV=%d", time.Now().Unix()))
+		cookiesStr := strings.Join(cookies, "; ")
+		headers.Set("Cookie", cookiesStr)
 		fhblade.Log.Debug("wss url", zap.String("url", u.String()))
 		wc, _, err := dialer.Dial(u.String(), headers)
 		if err != nil {

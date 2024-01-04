@@ -52,7 +52,7 @@ func main() {
 
 	// bing
 	app.Post("/bing/conversation", bing.DoCreateConversation())
-	app.Post("/bing/sendMessage", bing.DoSendMessage())
+	app.Post("/bing/message", bing.DoSendMessage())
 
 	// google gemini
 	app.Any("/gemini/*path", gemini.Do())

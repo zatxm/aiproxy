@@ -24,7 +24,8 @@ import (
 )
 
 var (
-	gClient tlsClient.HttpClient
+	gClient     tlsClient.HttpClient
+	parseClient = 0
 
 	ToneMap = map[string]string{
 		"Creative": "h3imaginative",
@@ -229,7 +230,7 @@ func DoSendMessage() func(*fhblade.Context) error {
 		if p.Tone == "" {
 			p.Tone = DefaultTone
 		}
-		bingHttpClient()
+		parseHttpClient()
 		// 处理图片
 		if p.ImageBase64 != "" {
 			cookies := DefaultCookies
@@ -386,9 +387,10 @@ func DoSendMessage() func(*fhblade.Context) error {
 	}
 }
 
-func bingHttpClient() error {
-	if &gClient == nil {
-		gClient, err := tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), []tlsClient.HttpClientOption{
+func parseHttpClient() error {
+	if parseClient == 0 {
+		var err error
+		gClient, err = tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), []tlsClient.HttpClientOption{
 			tlsClient.WithTimeoutSeconds(600),
 			tlsClient.WithClientProfile(profiles.Okhttp4Android13),
 		}...)
@@ -400,12 +402,13 @@ func bingHttpClient() error {
 		if proxyUrl != "" {
 			gClient.SetProxy(proxyUrl)
 		}
+		parseClient = 1
 	}
 	return nil
 }
 
 func createConversation() (*conversationObj, error) {
-	bingHttpClient()
+	parseHttpClient()
 	cookies := DefaultCookies
 	cookies = append(cookies, fmt.Sprintf("SRCHHPGUSR=HV=%d", time.Now().Unix()))
 	cookiesStr := strings.Join(cookies, "; ")

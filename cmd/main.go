@@ -51,7 +51,9 @@ func main() {
 	})
 
 	// bing
+	app.Get("/bing/conversation", bing.DoListConversation())
 	app.Post("/bing/conversation", bing.DoCreateConversation())
+	app.Delete("/bing/conversation", bing.DoDeleteConversation())
 	app.Post("/bing/message", bing.DoSendMessage())
 
 	// google gemini

@@ -108,7 +108,9 @@ var (
 
 	WsDelimiterByte          byte = 30
 	OriginUrl                     = "https://www.bing.com"
+	ListConversationApiUrl        = "https://www.bing.com/turing/conversation/chats"
 	CreateConversationApiUrl      = "https://www.bing.com/turing/conversation/create?bundleVersion=1.1199.4"
+	DeleteConversationApiUrl      = "https://sydney.bing.com/sydney/DeleteSingleConversation"
 	ImageUploadRefererUrl         = "https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx"
 	ImageUrl                      = "https://www.bing.com/images/blob?bcid="
 	ImageUploadApiUrl             = "https://www.bing.com/images/kblob"
@@ -195,12 +197,61 @@ type center struct {
 }
 
 type participant struct {
-	Id string `json:"id"`
+	Id string `json:"id" binding:"required`
 }
 
 type imgBlob struct {
 	BlobId          string `json:"blobId"`
 	ProcessedBlobId string `json:"processedBlobId"`
+}
+
+type deleteConversationParams struct {
+	ConversationId        string       `json:"conversationId" binding:"required"`
+	ConversationSignature string       `json:"conversationSignature" binding:"required"`
+	Participant           *participant `json:"participant" binding:"required`
+	Source                string       `json:"source,omitempty"`
+	OptionsSets           []string     `json:"optionsSets,omitempty"`
+}
+
+func DoDeleteConversation() func(*fhblade.Context) error {
+	return func(c *fhblade.Context) error {
+		var p deleteConversationParams
+		if err := c.ShouldBindJSON(&p); err != nil {
+			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
+		}
+		p.Source = "cib"
+		p.OptionsSets = []string{"autosave"}
+		parseHttpClient()
+		cookiesStr := parseCookies()
+		payload, _ := fhblade.Json.MarshalToString(&p)
+		req, _ := http.NewRequest(http.MethodGet, DeleteConversationApiUrl, strings.NewReader(payload))
+		req.Header = DefaultHeaders
+		req.Header.Set("Cookie", cookiesStr)
+		resp, err := gClient.Do(req)
+		if err != nil {
+			fhblade.Log.Error("bing DoDeleteConversation() req err", zap.Error(err))
+			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
+		}
+		defer resp.Body.Close()
+		return c.Reader(resp.Body)
+	}
+}
+
+func DoListConversation() func(*fhblade.Context) error {
+	return func(c *fhblade.Context) error {
+		parseHttpClient()
+		cookiesStr := parseCookies()
+		req, _ := http.NewRequest(http.MethodGet, ListConversationApiUrl, nil)
+		req.Header = DefaultHeaders
+		req.Header.Set("Cookie", cookiesStr)
+		resp, err := gClient.Do(req)
+		if err != nil {
+			fhblade.Log.Error("bing DoListConversation() req err", zap.Error(err))
+			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
+		}
+		defer resp.Body.Close()
+		return c.Reader(resp.Body)
+	}
 }
 
 func DoCreateConversation() func(*fhblade.Context) error {
@@ -241,9 +292,7 @@ func DoSendMessage() func(*fhblade.Context) error {
 		parseHttpClient()
 		// 处理图片
 		if p.ImageBase64 != "" {
-			cookies := DefaultCookies
-			cookies = append(cookies, fmt.Sprintf("SRCHHPGUSR=HV=%d", time.Now().Unix()))
-			cookiesStr := strings.Join(cookies, "; ")
+			cookiesStr := parseCookies()
 			dheaders := DefaultHeaders
 			dheaders.Set("Cookie", cookiesStr)
 			dheaders.Set("referer", ImageUploadRefererUrl)
@@ -312,9 +361,7 @@ func DoSendMessage() func(*fhblade.Context) error {
 		headers := make(ohttp.Header)
 		headers.Set("Origin", OriginUrl)
 		headers.Set("User-Agent", DefaultUserAgent)
-		cookies := DefaultCookies
-		cookies = append(cookies, fmt.Sprintf("SRCHHPGUSR=HV=%d", time.Now().Unix()))
-		cookiesStr := strings.Join(cookies, "; ")
+		cookiesStr := parseCookies()
 		headers.Set("Cookie", cookiesStr)
 		fhblade.Log.Debug("wss url", zap.String("url", u.String()))
 		wc, _, err := dialer.Dial(u.String(), headers)
@@ -408,6 +455,13 @@ func DoSendMessage() func(*fhblade.Context) error {
 	}
 }
 
+func parseCookies() string {
+	cookies := DefaultCookies
+	cookies = append(cookies, fmt.Sprintf("SRCHHPGUSR=HV=%d", time.Now().Unix()))
+	cookiesStr := strings.Join(cookies, "; ")
+	return cookiesStr
+}
+
 // 处理图片转成base64
 // bing要求图片格式是jpg
 // Todo 转换图片格式为jpg
@@ -443,9 +497,7 @@ func parseHttpClient() error {
 
 func createConversation() (*conversationObj, error) {
 	parseHttpClient()
-	cookies := DefaultCookies
-	cookies = append(cookies, fmt.Sprintf("SRCHHPGUSR=HV=%d", time.Now().Unix()))
-	cookiesStr := strings.Join(cookies, "; ")
+	cookiesStr := parseCookies()
 	req, _ := http.NewRequest(http.MethodGet, CreateConversationApiUrl, nil)
 	req.Header = DefaultHeaders
 	req.Header.Set("Cookie", cookiesStr)

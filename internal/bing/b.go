@@ -219,6 +219,14 @@ func DoSendMessage() func(*fhblade.Context) error {
 		if err := c.ShouldBindJSON(&p); err != nil {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
 		}
+		jpgBase64 := ""
+		if p.ImageBase64 != "" {
+			var err error
+			jpgBase64, err = processImageBase64(p.ImageBase64)
+			if err != nil {
+				return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
+			}
+		}
 		// 没有的话先创建会话
 		if p.Conversation == nil {
 			conversation, err := createConversation()
@@ -248,7 +256,7 @@ func DoSendMessage() func(*fhblade.Context) error {
 			textPart, _ := writer.CreateFormField("knowledgeRequest")
 			textPart.Write(tools.StringToBytes(rs))
 			textPart, _ = writer.CreateFormField("imageBase64")
-			textPart.Write(tools.StringToBytes(p.ImageBase64))
+			textPart.Write(tools.StringToBytes(jpgBase64))
 			writer.Close()
 			dheaders.Set("content-type", writer.FormDataContentType())
 			req, err := http.NewRequest(http.MethodPost, ImageUploadApiUrl, &requestBody)
@@ -398,6 +406,19 @@ func DoSendMessage() func(*fhblade.Context) error {
 			}
 		}
 	}
+}
+
+// 处理图片转成base64
+// bing要求图片格式是jpg
+// Todo 转换图片格式为jpg
+func processImageBase64(originBase64 string) (string, error) {
+	if originBase64 == "" {
+		return "", errors.New("image empty")
+	}
+	if strings.HasPrefix(originBase64, "/9j/") {
+		return originBase64, nil
+	}
+	return "", errors.New("Only support jpg")
 }
 
 func parseHttpClient() error {

@@ -358,12 +358,17 @@ func DoSendMessage() func(*fhblade.Context) error {
 		}()
 
 		// 发送数据
-		msgStart := []byte(`{"protocol":"json","version":1}`)
-		msgStart = append(msgStart, WsDelimiterByte)
+		msgStart := append([]byte(`{"protocol":"json","version":1}`), WsDelimiterByte)
 		err = wc.WriteMessage(websocket.TextMessage, msgStart)
 		if err != nil {
 			fhblade.Log.Error("bing DoSendMessage() wc write err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "Pre send message error"})
+		}
+		msgInput := append([]byte(`{"type":6}`), WsDelimiterByte)
+		err = wc.WriteMessage(websocket.TextMessage, msgInput)
+		if err != nil {
+			fhblade.Log.Error("bing DoSendMessage() wc write input err", zap.Error(err))
+			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "Pre send message input error"})
 		}
 		err = wc.WriteMessage(websocket.TextMessage, msgByte)
 		if err != nil {

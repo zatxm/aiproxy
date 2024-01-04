@@ -328,6 +328,14 @@ func DoSendMessage() func(*fhblade.Context) error {
 		header.Set("Access-Control-Allow-Origin", "*")
 		rw.WriteHeader(200)
 
+		// 发送会话信息
+		fMsg, _ := fhblade.Json.MarshalToString(&conversationObj{
+			ConversationId: p.Conversation.ConversationId,
+			ClientId:       p.Conversation.ClientId,
+			Signature:      p.Conversation.Signature})
+		fmt.Fprintf(rw, "data: %s\n\n", fMsg)
+		flusher.Flush()
+
 		splitByte := []byte{WsDelimiterByte}
 		endByteTag := []byte(`{"type":3`)
 		cancle := make(chan struct{})

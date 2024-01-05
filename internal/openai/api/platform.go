@@ -18,42 +18,22 @@ func DoPlatform(tag string) func(*fhblade.Context) error {
 			accept = "*/*"
 		}
 		c.Request().Req().Header = http.Header{
-			"accept":          {accept},
-			"accept-encoding": cons.AcceptEncoding,
-			"user-agent":      {cons.UserAgentOkHttp},
-			"content-type":    {cons.ContentTypeJSON},
-			"authorization":   {c.Request().Header("Authorization")},
-			http.HeaderOrderKey: {
-				"accept",
-				"accept-encoding",
-				"user-agent",
-				"content-type",
-				"authorization",
-			},
+			"Accept":          {accept},
+			"Accept-Encoding": cons.AcceptEncoding,
+			"User-Agent":      {cons.UserAgentOkHttp},
+			"Content-Type":    {cons.ContentTypeJSON},
+			"Authorization":   {c.Request().Header("Authorization")},
 		}
-		var goProxy httputil.ReverseProxy
-		if path == "/v1/chat/completions" && c.Request().Method() == "POST" {
-			goProxy = httputil.ReverseProxy{
-				Director: func(req *http.Request) {
-					req.Host = "chat.openai.com"
-					req.URL.Host = "chat.openai.com"
-					req.URL.Scheme = "https"
-					req.URL.Path = "/backend-api/conversation"
-				},
-				Transport: gClient.TClient().Transport,
-			}
-		} else {
-			query := c.Request().RawQuery()
-			goProxy = httputil.ReverseProxy{
-				Director: func(req *http.Request) {
-					req.Host = "api.openai.com"
-					req.URL.Host = "api.openai.com"
-					req.URL.Scheme = "https"
-					req.URL.Path = path
-					req.URL.RawQuery = query
-				},
-				Transport: gClient.TClient().Transport,
-			}
+		query := c.Request().RawQuery()
+		goProxy := httputil.ReverseProxy{
+			Director: func(req *http.Request) {
+				req.Host = "api.openai.com"
+				req.URL.Host = "api.openai.com"
+				req.URL.Scheme = "https"
+				req.URL.Path = path
+				req.URL.RawQuery = query
+			},
+			Transport: gClient.TClient().Transport,
 		}
 		goProxy.ServeHTTP(c.Response().Rw(), c.Request().Req())
 		return nil

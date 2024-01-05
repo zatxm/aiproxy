@@ -10,7 +10,6 @@ import (
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/fhblade"
-	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
 )
 
@@ -43,7 +42,6 @@ func DoWeb() func(*fhblade.Context) error {
 		}
 
 		gClient := client.TlsWithCookie()
-		gClient.SetCookieJar(tlsClient.NewCookieJar())
 
 		// csrfToken
 		req, _ := http.NewRequest(http.MethodGet, CsrfUrl, nil)

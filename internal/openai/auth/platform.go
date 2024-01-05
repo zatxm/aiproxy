@@ -10,7 +10,6 @@ import (
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/fhblade"
-	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
 )
 
@@ -174,7 +173,6 @@ func DoPlatformRevoke() func(*fhblade.Context) error {
 // get platform login token
 func getPlatformAuthToken(p *authTokenParams) (*http.Response, error) {
 	gClient := client.TlsWithCookie()
-	gClient.SetCookieJar(tlsClient.NewCookieJar())
 
 	// refresh cookies
 	resp, _ := gClient.Get(PlatformAuth0LogoutUrl)

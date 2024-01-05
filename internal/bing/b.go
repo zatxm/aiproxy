@@ -90,7 +90,15 @@ var (
 		"SemanticSerp",
 		"GenerateContentQuery",
 		"SearchQuery",
-		"RenderCardRequest"}
+		"RenderCardRequest",
+		"InvokeAction",
+		"ConfirmationCard",
+		"InternalSearchQuery",
+		"InternalSearchResult",
+		"Disengaged",
+		"InternalLoaderMessage",
+		"RenderContentRequest",
+		"AdsQuery"}
 	SliceIds = []string{
 		"abv2",
 		"srdicton",
@@ -125,6 +133,7 @@ type conversationObj struct {
 	Result         conversationResult `json:"result,omitempty"`
 	Signature      string             `json:"signature" binding:"required"`
 	ImageUrl       string             `json:"imageUrl,omitempty"`
+	TraceId        string             `json:"traceId,omitempty"`
 }
 
 type conversationResult struct {
@@ -136,7 +145,6 @@ type sendMessageParams struct {
 	Conversation *conversationObj `json:"conversation,omitempty"`
 	Prompt       string           `json:"prompt" binding:"required"`
 	Tone         string           `json:"tone,omitempty"`
-	Context      string           `json:"context,omitempty"`
 	ImageBase64  string           `json:"imageBase64,omitempty"`
 	WebSearch    bool             `json:"webSearch,omitempty"`
 }
@@ -150,19 +158,20 @@ type sendMessageRequest struct {
 }
 
 type argument struct {
-	Source              string       `json:"source"`
-	OptionsSets         []string     `json:"optionsSets"`
-	AllowedMessageTypes []string     `json:"allowedMessageTypes"`
-	SliceIds            []string     `json:"sliceIds"`
-	TraceId             string       `json:"traceId"`
-	IsStartOfSession    bool         `json:"isStartOfSession"`
-	RequestId           string       `json:"requestId"`
-	Message             *message     `json:"message"`
-	Scenario            string       `json:"scenario"`
-	Tone                string       `json:"tone"`
-	SpokenTextMode      string       `json:"spokenTextMode"`
-	ConversationId      string       `json:"conversationId"`
-	Participant         *participant `json:"participant"`
+	Source                         string       `json:"source"`
+	OptionsSets                    []string     `json:"optionsSets"`
+	AllowedMessageTypes            []string     `json:"allowedMessageTypes"`
+	SliceIds                       []string     `json:"sliceIds"`
+	TraceId                        string       `json:"traceId"`
+	ConversationHistoryOptionsSets []string     `json:"conversationHistoryOptionsSets"`
+	IsStartOfSession               bool         `json:"isStartOfSession"`
+	RequestId                      string       `json:"requestId"`
+	Message                        *message     `json:"message"`
+	Scenario                       string       `json:"scenario"`
+	Tone                           string       `json:"tone"`
+	SpokenTextMode                 string       `json:"spokenTextMode"`
+	ConversationId                 string       `json:"conversationId"`
+	Participant                    *participant `json:"participant"`
 }
 
 type message struct {
@@ -286,6 +295,11 @@ func DoSendMessage() func(*fhblade.Context) error {
 			}
 			p.Conversation = conversation
 		}
+		isStartOfSession := false
+		if p.Conversation.TraceId == "" {
+			p.Conversation.TraceId = support.RandHex(16)
+			isStartOfSession = true
+		}
 		if p.Tone == "" {
 			p.Tone = DefaultTone
 		}
@@ -337,7 +351,7 @@ func DoSendMessage() func(*fhblade.Context) error {
 			p.Conversation.ImageUrl = ImageUrl + imgUrlId
 		}
 
-		msgByte := generateMessage(p.Conversation, p.Prompt, p.Tone, p.Context, p.WebSearch)
+		msgByte := generateMessage(p.Conversation, p.Prompt, p.Tone, p.WebSearch, isStartOfSession)
 
 		urlParams := url.Values{"sec_access_token": {p.Conversation.Signature}}
 		u := url.URL{
@@ -387,7 +401,8 @@ func DoSendMessage() func(*fhblade.Context) error {
 		fMsg, _ := fhblade.Json.MarshalToString(&conversationObj{
 			ConversationId: p.Conversation.ConversationId,
 			ClientId:       p.Conversation.ClientId,
-			Signature:      p.Conversation.Signature})
+			Signature:      p.Conversation.Signature,
+			TraceId:        p.Conversation.TraceId})
 		fmt.Fprintf(rw, "data: %s\n\n", fMsg)
 		flusher.Flush()
 
@@ -520,7 +535,7 @@ func generateBoundary() string {
 	return "----WebKitFormBoundary" + support.GenerateRandomString(16)
 }
 
-func generateMessage(c *conversationObj, prompt, tone, context string, webSearch bool) []byte {
+func generateMessage(c *conversationObj, prompt, tone string, webSearch, isStartOfSession bool) []byte {
 	id := uuid.NewString()
 	ct := &center{
 		Latitude:  34.0536909,
@@ -560,22 +575,23 @@ func generateMessage(c *conversationObj, prompt, tone, context string, webSearch
 	}
 	pc := &participant{Id: c.ClientId}
 	arg := &argument{
-		Source:              "cib",
-		OptionsSets:         opSet,
-		AllowedMessageTypes: AllowedMessageTypes,
-		SliceIds:            SliceIds,
-		TraceId:             support.RandHex(16),
-		IsStartOfSession:    true,
-		RequestId:           id,
-		Message:             msg,
-		Scenario:            "SERP",
-		Tone:                tone,
-		SpokenTextMode:      "None",
-		ConversationId:      c.ConversationId,
-		Participant:         pc}
+		Source:                         "cib",
+		OptionsSets:                    opSet,
+		AllowedMessageTypes:            AllowedMessageTypes,
+		SliceIds:                       SliceIds,
+		TraceId:                        c.TraceId,
+		ConversationHistoryOptionsSets: []string{"threads_bce", "savemem", "uprofupd", "uprofgen"},
+		IsStartOfSession:               isStartOfSession,
+		RequestId:                      id,
+		Message:                        msg,
+		Scenario:                       "SERP",
+		Tone:                           tone,
+		SpokenTextMode:                 "None",
+		ConversationId:                 c.ConversationId,
+		Participant:                    pc}
 	smr := &sendMessageRequest{
 		Arguments:    []*argument{arg},
-		InvocationId: "1",
+		InvocationId: uuid.NewString(),
 		Target:       "chat",
 		Type:         4}
 

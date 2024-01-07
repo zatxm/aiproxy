@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"runtime"
 
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/arkose/har"
@@ -18,8 +17,6 @@ import (
 )
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	// parse config
 	var configFile string
 	flag.StringVar(&configFile, "c", "", "where is config filepath")

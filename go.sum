@@ -75,8 +75,8 @@ github.com/tam7t/hpkp v0.0.0-20160821193359-2b70b4024ed5/go.mod h1:2JjD2zLQYH5HO
 github.com/ugorji/go/codec v1.2.12 h1:9LC83zGrHhuUA9l16C9AHXAqEV/2wBQ4nkvumAE65EE=
 github.com/ugorji/go/codec v1.2.12/go.mod h1:UNopzCgEMSXjBc6AOMqYvWC1ktqTAfzJZUZgYf6w6lg=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-github.com/zatxm/fhblade v0.0.0-20240108023031-c420e787bdb2 h1:15okdMQk9Qcu3aPznNRZ4JrlwVfhiyWAOpWj8zUzQ0M=
-github.com/zatxm/fhblade v0.0.0-20240108023031-c420e787bdb2/go.mod h1:SFRljspWKn1EAkox9M//RU3n3bSgyLEPK16X030dhdY=
+github.com/zatxm/fhblade v0.0.0-20240108025308-f44555e310c6 h1:b0H5DfnTCsKhS2FZgDTX4XgyPCCSNspd0X7CYv+65lk=
+github.com/zatxm/fhblade v0.0.0-20240108025308-f44555e310c6/go.mod h1:SFRljspWKn1EAkox9M//RU3n3bSgyLEPK16X030dhdY=
 github.com/zatxm/tls-client v0.0.0-20231223102741-4e348055c451 h1:6Mh7UwwbcDNJaxC132lsSmcPtfwfCW93zHudjTynTp4=
 github.com/zatxm/tls-client v0.0.0-20231223102741-4e348055c451/go.mod h1:GhmLHvEf7ufGoXchDdlT+0cANaV4EpmSH86TN8/HCG8=
 go.uber.org/goleak v1.2.0 h1:xqgm/S+aQvhWFTtR0XK3Jvg7z8kGV8P4X14IzwN3Eqk=

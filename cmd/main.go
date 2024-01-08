@@ -8,7 +8,6 @@ import (
 	"github.com/zatxm/any-proxy/internal/arkose/har"
 	"github.com/zatxm/any-proxy/internal/arkose/solve"
 	"github.com/zatxm/any-proxy/internal/bing"
-	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/gemini"
 	oapi "github.com/zatxm/any-proxy/internal/openai/api"
@@ -30,9 +29,6 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-
-	// parse init http client
-	client.Parse()
 
 	// parse har
 	_, err = har.Parse()

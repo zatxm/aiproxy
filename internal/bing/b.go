@@ -8,6 +8,7 @@ import (
 	ohttp "net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	http "github.com/bogdanfinn/fhttp"
@@ -24,8 +25,22 @@ import (
 )
 
 var (
-	gClient     tlsClient.HttpClient
-	parseClient = 0
+	cPool = sync.Pool{
+		New: func() interface{} {
+			c, err := tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), []tlsClient.HttpClientOption{
+				tlsClient.WithTimeoutSeconds(600),
+				tlsClient.WithClientProfile(profiles.Okhttp4Android13),
+			}...)
+			if err != nil {
+				fhblade.Log.Error("bing init http client err", zap.Error(err))
+			}
+			proxyUrl := config.V().Bing.ProxyUrl
+			if proxyUrl != "" {
+				c.SetProxy(proxyUrl)
+			}
+			return c
+		},
+	}
 
 	ToneMap = map[string]string{
 		"Creative": "h3imaginative",
@@ -230,35 +245,39 @@ func DoDeleteConversation() func(*fhblade.Context) error {
 		}
 		p.Source = "cib"
 		p.OptionsSets = []string{"autosave"}
-		parseHttpClient()
 		cookiesStr := parseCookies()
 		payload, _ := fhblade.Json.MarshalToString(&p)
 		req, _ := http.NewRequest(http.MethodGet, DeleteConversationApiUrl, strings.NewReader(payload))
 		req.Header = DefaultHeaders
 		req.Header.Set("Cookie", cookiesStr)
+		gClient := cPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
+			cPool.Put(gClient)
 			fhblade.Log.Error("bing DoDeleteConversation() req err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
 		}
 		defer resp.Body.Close()
+		cPool.Put(gClient)
 		return c.Reader(resp.Body)
 	}
 }
 
 func DoListConversation() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		parseHttpClient()
 		cookiesStr := parseCookies()
 		req, _ := http.NewRequest(http.MethodGet, ListConversationApiUrl, nil)
 		req.Header = DefaultHeaders
 		req.Header.Set("Cookie", cookiesStr)
+		gClient := cPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
+			cPool.Put(gClient)
 			fhblade.Log.Error("bing DoListConversation() req err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
 		}
 		defer resp.Body.Close()
+		cPool.Put(gClient)
 		return c.Reader(resp.Body)
 	}
 }
@@ -303,7 +322,6 @@ func DoSendMessage() func(*fhblade.Context) error {
 		if p.Tone == "" {
 			p.Tone = DefaultTone
 		}
-		parseHttpClient()
 		// 处理图片
 		if p.ImageBase64 != "" {
 			cookiesStr := parseCookies()
@@ -330,14 +348,17 @@ func DoSendMessage() func(*fhblade.Context) error {
 				return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
 			}
 			req.Header = dheaders
+			gClient := cPool.Get().(tlsClient.HttpClient)
 			resp, err := gClient.Do(req)
 			if err != nil {
+				cPool.Put(gClient)
 				fhblade.Log.Error("bing DoSendMessage() img upload gClient.Do err",
 					zap.Error(err),
 					zap.String("data", requestBody.String()))
 				return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
 			}
 			defer resp.Body.Close()
+			cPool.Put(gClient)
 			imgRes := &imgBlob{}
 			if err := fhblade.Json.NewDecoder(resp.Body).Decode(imgRes); err != nil {
 				fhblade.Log.Error("bing DoSendMessage() img upload res json err",
@@ -490,38 +511,20 @@ func processImageBase64(originBase64 string) (string, error) {
 	return "", errors.New("Only support jpg")
 }
 
-func parseHttpClient() error {
-	if parseClient == 0 {
-		var err error
-		gClient, err = tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), []tlsClient.HttpClientOption{
-			tlsClient.WithTimeoutSeconds(600),
-			tlsClient.WithClientProfile(profiles.Okhttp4Android13),
-		}...)
-		if err != nil {
-			fhblade.Log.Error("bing createConversation() init http client err", zap.Error(err))
-			return err
-		}
-		proxyUrl := config.V().Bing.ProxyUrl
-		if proxyUrl != "" {
-			gClient.SetProxy(proxyUrl)
-		}
-		parseClient = 1
-	}
-	return nil
-}
-
 func createConversation() (*conversationObj, error) {
-	parseHttpClient()
 	cookiesStr := parseCookies()
 	req, _ := http.NewRequest(http.MethodGet, CreateConversationApiUrl, nil)
 	req.Header = DefaultHeaders
 	req.Header.Set("Cookie", cookiesStr)
+	gClient := cPool.Get().(tlsClient.HttpClient)
 	resp, err := gClient.Do(req)
 	if err != nil {
+		cPool.Put(gClient)
 		fhblade.Log.Error("bing CreateConversation() req err", zap.Error(err))
 		return nil, err
 	}
 	defer resp.Body.Close()
+	cPool.Put(gClient)
 	conversation := &conversationObj{}
 	if err := fhblade.Json.NewDecoder(resp.Body).Decode(conversation); err != nil {
 		fhblade.Log.Error("bing CreateConversation() res err", zap.Error(err))

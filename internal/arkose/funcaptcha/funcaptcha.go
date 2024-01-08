@@ -14,6 +14,7 @@ import (
 	"github.com/zatxm/any-proxy/pkg/jscrypt"
 	"github.com/zatxm/any-proxy/pkg/support"
 	"github.com/zatxm/fhblade"
+	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
 )
 
@@ -190,17 +191,19 @@ func (a *ArkoseSession) GoArkoseChallenge(isAudioGame bool) (*ApiBreaker, error)
 		APIBreakerVersion: "green",
 	}
 
-	gClient := client.Tls()
 	payload := support.StructToFormByJson(arkoseRequestChallenge)
 	req, _ := http.NewRequest(http.MethodPost, "https://client-api.arkoselabs.com/fc/gfct/", strings.NewReader(payload))
 	req.Header = a.Headers
 	req.Header.Set("X-NewRelic-Timestamp", support.TimeStamp())
+	gClient := client.CPool.Get().(tlsClient.HttpClient)
 	resp, err := gClient.Do(req)
 	if err != nil {
+		client.CPool.Put(gClient)
 		fhblade.Log.Error("go arkose challenge req error", zap.Error(err))
 		return nil, err
 	}
 	defer resp.Body.Close()
+	client.CPool.Put(gClient)
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("fc/gfct Status code %d", resp.StatusCode)
 	}
@@ -269,7 +272,6 @@ func (a *ArkoseSession) SubmitAnswer(indices []int, isAudio bool, apiBreaker *Ap
 			answerIndex = append(answerIndex, marshal)
 		}
 	}
-	gClient := client.Tls()
 	answer := "[" + strings.Join(answerIndex, ",") + "]"
 	submission.Guess, _ = jscrypt.Encrypt(answer, a.SessionToken)
 	payload := support.StructToFormByJson(submission)
@@ -277,12 +279,15 @@ func (a *ArkoseSession) SubmitAnswer(indices []int, isAudio bool, apiBreaker *Ap
 	req.Header = a.Headers
 	req.Header.Set("X-Requested-ID", generateAnswerRequestId(a.SessionToken))
 	req.Header.Set("X-NewRelic-Timestamp", support.TimeStamp())
+	gClient := client.CPool.Get().(tlsClient.HttpClient)
 	resp, err := gClient.Do(req)
 	if err != nil {
+		client.CPool.Put(gClient)
 		fhblade.Log.Error("submit answer req error", zap.Error(err))
 		return err
 	}
 	defer resp.Body.Close()
+	client.CPool.Put(gClient)
 	var aRes struct {
 		Error          string `json:"error,omitempty"`
 		Response       string `json:"response"`
@@ -314,15 +319,17 @@ func (a *ArkoseSession) Loged(gameToken string, gameType int, category, action s
 	cl.Category = category
 	cl.Action = action
 
-	gClient := client.Tls()
 	req, _ := http.NewRequest(http.MethodPost, "https://client-api.arkoselabs.com/fc/a/", strings.NewReader(support.StructToFormByJson(cl)))
 	req.Header = ArkoseHeaders
+	gClient := client.CPool.Get().(tlsClient.HttpClient)
 	resp, err := gClient.Do(req)
 	if err != nil {
+		client.CPool.Put(gClient)
 		fhblade.Log.Error("go arkose challenge loged req error", zap.Error(err))
 		return err
 	}
 	defer resp.Body.Close()
+	client.CPool.Put(gClient)
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("status code %d", resp.StatusCode)
 	}

@@ -6,6 +6,7 @@ import (
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/fhblade"
+	tlsClient "github.com/zatxm/tls-client"
 )
 
 func DoWeb(tag string) func(*fhblade.Context) error {
@@ -31,7 +32,8 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 				"authorization",
 			},
 		}
-		gClient := client.Tls()
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		defer client.CPool.Put(gClient)
 		goProxy := httputil.ReverseProxy{
 			Director: func(req *http.Request) {
 				req.Host = "chat.openai.com"

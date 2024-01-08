@@ -10,6 +10,7 @@ import (
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/fhblade"
+	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
 )
 
@@ -41,7 +42,8 @@ func DoWeb() func(*fhblade.Context) error {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
 		}
 
-		gClient := client.TlsWithCookie()
+		gClient := client.CcPool.Get().(tlsClient.HttpClient)
+		defer client.CcPool.Put(gClient)
 
 		// csrfToken
 		req, _ := http.NewRequest(http.MethodGet, CsrfUrl, nil)

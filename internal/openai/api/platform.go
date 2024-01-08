@@ -6,12 +6,14 @@ import (
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/fhblade"
+	tlsClient "github.com/zatxm/tls-client"
 )
 
 func DoPlatform(tag string) func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		path := "/" + tag + "/" + c.Get("path")
-		gClient := client.Tls()
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		defer client.CPool.Put(gClient)
 		// 防止乱七八糟的header被拒，特别是开启https的cf域名从大陆访问
 		accept := c.Request().Header("Accept")
 		if accept == "" {

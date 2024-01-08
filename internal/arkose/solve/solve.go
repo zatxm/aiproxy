@@ -16,6 +16,7 @@ import (
 	"github.com/zatxm/any-proxy/pkg/support"
 	"github.com/zatxm/fhblade"
 	"github.com/zatxm/fhblade/tools"
+	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
 )
 
@@ -71,7 +72,6 @@ func DoToken(pk string) (string, error) {
 
 // 解决验证码，自己编写接码平台等
 func solveServiceDo(imgs []string) ([]int, error) {
-	gClient := client.Tls()
 	solveApiUrl := config.V().Arkose.SolveApiUrl
 	l := len(imgs)
 	rChan := make(chan map[string]interface{}, l)
@@ -85,13 +85,16 @@ func solveServiceDo(imgs []string) ([]int, error) {
 			})
 			req, _ := http.NewRequest(http.MethodPost, solveApiUrl, strings.NewReader(jsonBytes))
 			req.Header.Set("Content-Type", cons.ContentTypeJSON)
+			gClient := client.CPool.Get().(tlsClient.HttpClient)
 			resp, err := gClient.Do(req)
 			var rMap interface{}
 			if err != nil {
+				client.CPool.Put(gClient)
 				fhblade.Log.Error("solve challenge req err", zap.Error(err))
 				rMap = err
 			} else {
 				defer resp.Body.Close()
+				client.CPool.Put(gClient)
 				err := fhblade.Json.NewDecoder(resp.Body).Decode(&rMap)
 				if err != nil {
 					fhblade.Log.Error("solve challenge res err", zap.Error(err))
@@ -119,17 +122,19 @@ func solveServiceDo(imgs []string) ([]int, error) {
 
 func downloadArkoseChallengeImg(urls []string) ([]string, error) {
 	var imgs []string = make([]string, len(urls))
-	gClient := client.Tls()
 	for k := range urls {
 		gUrl := urls[k]
 		req, _ := http.NewRequest(http.MethodGet, gUrl, nil)
 		req.Header = funcaptcha.ArkoseHeaders
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
+			client.CPool.Put(gClient)
 			fhblade.Log.Error("downloading challenge err", zap.Error(err))
 			return nil, err
 		}
 		defer resp.Body.Close()
+		client.CPool.Put(gClient)
 		if resp.StatusCode != 200 {
 			return nil, fmt.Errorf("Downloading challenge status code %d", resp.StatusCode)
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/fhblade"
+	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
 )
 
@@ -76,17 +77,19 @@ func DoPlatformTks() func(*fhblade.Context) error {
 		}
 
 		// get session key
-		gClient := client.TlsWithCookie()
 		req, _ := http.NewRequest(http.MethodPost, DashboardLoginUrl, strings.NewReader("{}"))
 		req.Header.Set("Content-Type", cons.ContentTypeJSON)
 		req.Header.Set("User-Agent", cons.UserAgent)
 		req.Header.Set("Authorization", "Bearer "+accessTokenMap["access_token"].(string))
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err = gClient.Do(req)
 		if err != nil {
+			client.CPool.Put(gClient)
 			fhblade.Log.Error("platform session key req err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
 		}
 		defer resp.Body.Close()
+		client.CPool.Put(gClient)
 		var sessionMap map[string]interface{}
 		if err := fhblade.Json.NewDecoder(resp.Body).Decode(&sessionMap); err != nil {
 			fhblade.Log.Error("platform session key res err", zap.Error(err))
@@ -101,17 +104,19 @@ func DoPlatformTks() func(*fhblade.Context) error {
 // session
 func DoPlatformSession() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		gClient := client.Tls()
 		req, _ := http.NewRequest(http.MethodPost, DashboardLoginUrl, strings.NewReader("{}"))
 		req.Header.Set("Content-Type", cons.ContentTypeJSON)
 		req.Header.Set("User-Agent", cons.UserAgent)
 		req.Header.Set("Authorization", c.Request().Header("Authorization"))
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
+			client.CPool.Put(gClient)
 			fhblade.Log.Error("auth/session/platform req err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
 		}
 		defer resp.Body.Close()
+		client.CPool.Put(gClient)
 		return c.Reader(resp.Body)
 	}
 }
@@ -124,7 +129,6 @@ func DoPlatformRefresh() func(*fhblade.Context) error {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
 		}
 
-		gClient := client.Tls()
 		jsonBytes, _ := fhblade.Json.MarshalToString(map[string]string{
 			"redirect_uri":  PlatformAuthRedirectURL,
 			"grant_type":    "refresh_token",
@@ -134,12 +138,15 @@ func DoPlatformRefresh() func(*fhblade.Context) error {
 		req, _ := http.NewRequest(http.MethodPost, OauthTokenUrl, strings.NewReader(jsonBytes))
 		req.Header.Set("Content-Type", cons.ContentTypeJSON)
 		req.Header.Set("User-Agent", cons.UserAgent)
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
+			client.CPool.Put(gClient)
 			fhblade.Log.Error("token/platform/refresh req err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
 		}
 		defer resp.Body.Close()
+		client.CPool.Put(gClient)
 		return c.Reader(resp.Body)
 	}
 }
@@ -152,7 +159,6 @@ func DoPlatformRevoke() func(*fhblade.Context) error {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
 		}
 
-		gClient := client.Tls()
 		jsonBytes, _ := fhblade.Json.MarshalToString(map[string]string{
 			"client_id": PlatformAuthClientID,
 			"token":     p.RefreshToken,
@@ -160,19 +166,23 @@ func DoPlatformRevoke() func(*fhblade.Context) error {
 		req, _ := http.NewRequest(http.MethodPost, OauthTokenRevokeUrl, strings.NewReader(jsonBytes))
 		req.Header.Set("Content-Type", cons.ContentTypeJSON)
 		req.Header.Set("User-Agent", cons.UserAgent)
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
+			client.CPool.Put(gClient)
 			fhblade.Log.Error("token/platform/revoke req err", zap.Error(err))
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
 		}
 		defer resp.Body.Close()
+		client.CPool.Put(gClient)
 		return c.Reader(resp.Body)
 	}
 }
 
 // get platform login token
 func getPlatformAuthToken(p *authTokenParams) (*http.Response, error) {
-	gClient := client.TlsWithCookie()
+	gClient := client.CcPool.Get().(tlsClient.HttpClient)
+	defer client.CcPool.Put(gClient)
 
 	// refresh cookies
 	resp, _ := gClient.Get(PlatformAuth0LogoutUrl)

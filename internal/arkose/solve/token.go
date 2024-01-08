@@ -15,6 +15,7 @@ import (
 	"github.com/zatxm/any-proxy/pkg/jscrypt"
 	"github.com/zatxm/any-proxy/pkg/support"
 	"github.com/zatxm/fhblade"
+	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
 )
 
@@ -73,12 +74,15 @@ func GetTokenByPk(pk string) (string, error) {
 		req.Header = data.Headers.Clone()
 		req.Header.Set("user-agent", bv)
 		req.Header.Set("cookie", support.GenerateRandomString(16)+"="+support.GenerateRandomString(96))
-		resp, err := client.Tls().Do(req)
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		resp, err := gClient.Do(req)
 		if err != nil {
+			client.CPool.Put(gClient)
 			fhblade.Log.Error("Req arkose token error", zap.Error(err))
 			continue
 		}
 		defer resp.Body.Close()
+		client.CPool.Put(gClient)
 		if resp.StatusCode != 200 {
 			fhblade.Log.Debug("Req arkose token status code", zap.String("status", resp.Status))
 			continue

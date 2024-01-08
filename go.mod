@@ -7,7 +7,7 @@ require (
 	github.com/bogdanfinn/fhttp v0.5.27
 	github.com/google/uuid v1.5.0
 	github.com/gorilla/websocket v1.5.1
-	github.com/zatxm/fhblade v0.0.0-20231223070036-1bbfa872cc0e
+	github.com/zatxm/fhblade v0.0.0-20240108023031-c420e787bdb2
 	github.com/zatxm/tls-client v0.0.0-20231223102741-4e348055c451
 	go.uber.org/zap v1.26.0
 	gopkg.in/yaml.v3 v3.0.1

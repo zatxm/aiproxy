@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	http "github.com/bogdanfinn/fhttp"
-	"github.com/zatxm/any-proxy/internal/arkose/funcaptcha"
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/cons"
+	"github.com/zatxm/any-proxy/internal/openai/arkose/funcaptcha"
 	"github.com/zatxm/any-proxy/pkg/support"
 	"github.com/zatxm/fhblade"
 	"github.com/zatxm/fhblade/tools"

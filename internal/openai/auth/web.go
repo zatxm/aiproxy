@@ -6,9 +6,9 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	http "github.com/bogdanfinn/fhttp"
-	"github.com/zatxm/any-proxy/internal/arkose/solve"
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/cons"
+	"github.com/zatxm/any-proxy/internal/openai/arkose/solve"
 	"github.com/zatxm/fhblade"
 	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
@@ -47,7 +47,7 @@ func DoWeb() func(*fhblade.Context) error {
 
 		// csrfToken
 		req, _ := http.NewRequest(http.MethodGet, CsrfUrl, nil)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		resp, err := gClient.Do(req)
 		if err != nil {
 			fhblade.Log.Error("csrfToken req err", zap.Error(err))
@@ -69,8 +69,8 @@ func DoWeb() func(*fhblade.Context) error {
 			"json":        {"true"},
 		}
 		req, _ = http.NewRequest(http.MethodPost, PromptLoginUrl, strings.NewReader(authorizeBody.Encode()))
-		req.Header.Set("Content-Type", cons.ContentType)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("content-type", cons.ContentType)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		resp, err = gClient.Do(req)
 		if err != nil {
 			fhblade.Log.Error("web authorize url req err", zap.Error(err))
@@ -87,8 +87,8 @@ func DoWeb() func(*fhblade.Context) error {
 
 		// 获取state，是个重定向
 		req, err = http.NewRequest(http.MethodGet, authorizedUrl, nil)
-		req.Header.Set("Content-Type", cons.ContentType)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("content-type", cons.ContentType)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		resp, err = gClient.Do(req)
 		if err != nil {
 			fhblade.Log.Error("web state req err", zap.Error(err))
@@ -113,8 +113,8 @@ func DoWeb() func(*fhblade.Context) error {
 			"action":                      {"default"},
 		}
 		req, _ = http.NewRequest(http.MethodPost, LoginUsernameUrl+state, strings.NewReader(emailCheckBody.Encode()))
-		req.Header.Set("Content-Type", cons.ContentType)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("content-type", cons.ContentType)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		resp, err = gClient.Do(req)
 		if err != nil {
 			fhblade.Log.Error("web check email req err", zap.Error(err))
@@ -141,8 +141,8 @@ func DoWeb() func(*fhblade.Context) error {
 			"password": {p.Password},
 		}
 		req, err = http.NewRequest(http.MethodPost, LoginPasswordUrl+state, strings.NewReader(passwdCheckBody.Encode()))
-		req.Header.Set("Content-Type", cons.ContentType)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("content-type", cons.ContentType)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		gClient.SetFollowRedirect(false)
 		resp, err = gClient.Do(req)
 		if err != nil {
@@ -164,7 +164,7 @@ func DoWeb() func(*fhblade.Context) error {
 
 		// 登录返回验证
 		req, _ = http.NewRequest(http.MethodGet, Auth0Url+resp.Header.Get("Location"), nil)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		resp, err = gClient.Do(req)
 		if err != nil {
 			fhblade.Log.Error("web login back req err", zap.Error(err))
@@ -181,7 +181,7 @@ func DoWeb() func(*fhblade.Context) error {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "Login with two-factor authentication enabled is not supported currently."})
 		}
 		req, _ = http.NewRequest(http.MethodGet, location, nil)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		resp, err = gClient.Do(req)
 		if err != nil {
 			fhblade.Log.Error("web chat openai url req err", zap.Error(err))
@@ -200,7 +200,7 @@ func DoWeb() func(*fhblade.Context) error {
 
 		// 获取access_token
 		req, err = http.NewRequest(http.MethodGet, AuthSessionUrl, nil)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		resp, err = gClient.Do(req)
 		if err != nil {
 			fhblade.Log.Error("web access token req err", zap.Error(err))

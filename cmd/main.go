@@ -5,12 +5,12 @@ import (
 	"fmt"
 
 	http "github.com/bogdanfinn/fhttp"
-	"github.com/zatxm/any-proxy/internal/arkose/har"
-	"github.com/zatxm/any-proxy/internal/arkose/solve"
 	"github.com/zatxm/any-proxy/internal/bing"
 	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/gemini"
 	oapi "github.com/zatxm/any-proxy/internal/openai/api"
+	"github.com/zatxm/any-proxy/internal/openai/arkose/har"
+	"github.com/zatxm/any-proxy/internal/openai/arkose/solve"
 	"github.com/zatxm/any-proxy/internal/openai/auth"
 	"github.com/zatxm/fhblade"
 )
@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// parse har
-	_, err = har.Parse()
+	err = har.Parse()
 	if err != nil {
 		fmt.Println(err)
 	}

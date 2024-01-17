@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	http "github.com/bogdanfinn/fhttp"
-	"github.com/zatxm/any-proxy/internal/arkose/solve"
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/cons"
+	"github.com/zatxm/any-proxy/internal/openai/arkose/solve"
 	"github.com/zatxm/fhblade"
 	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
@@ -78,9 +78,9 @@ func DoPlatformTks() func(*fhblade.Context) error {
 
 		// get session key
 		req, _ := http.NewRequest(http.MethodPost, DashboardLoginUrl, strings.NewReader("{}"))
-		req.Header.Set("Content-Type", cons.ContentTypeJSON)
-		req.Header.Set("User-Agent", cons.UserAgent)
-		req.Header.Set("Authorization", "Bearer "+accessTokenMap["access_token"].(string))
+		req.Header.Set("content-type", cons.ContentTypeJSON)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
+		req.Header.Set("authorization", "Bearer "+accessTokenMap["access_token"].(string))
 		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err = gClient.Do(req)
 		if err != nil {
@@ -105,9 +105,9 @@ func DoPlatformTks() func(*fhblade.Context) error {
 func DoPlatformSession() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		req, _ := http.NewRequest(http.MethodPost, DashboardLoginUrl, strings.NewReader("{}"))
-		req.Header.Set("Content-Type", cons.ContentTypeJSON)
-		req.Header.Set("User-Agent", cons.UserAgent)
-		req.Header.Set("Authorization", c.Request().Header("Authorization"))
+		req.Header.Set("content-type", cons.ContentTypeJSON)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
+		req.Header.Set("authorization", c.Request().Header("Authorization"))
 		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
@@ -136,8 +136,8 @@ func DoPlatformRefresh() func(*fhblade.Context) error {
 			"refresh_token": p.RefreshToken,
 		})
 		req, _ := http.NewRequest(http.MethodPost, OauthTokenUrl, strings.NewReader(jsonBytes))
-		req.Header.Set("Content-Type", cons.ContentTypeJSON)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("content-type", cons.ContentTypeJSON)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
@@ -164,8 +164,8 @@ func DoPlatformRevoke() func(*fhblade.Context) error {
 			"token":     p.RefreshToken,
 		})
 		req, _ := http.NewRequest(http.MethodPost, OauthTokenRevokeUrl, strings.NewReader(jsonBytes))
-		req.Header.Set("Content-Type", cons.ContentTypeJSON)
-		req.Header.Set("User-Agent", cons.UserAgent)
+		req.Header.Set("content-type", cons.ContentTypeJSON)
+		req.Header.Set("user-agent", cons.UserAgentOkHttp)
 		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		resp, err := gClient.Do(req)
 		if err != nil {
@@ -197,8 +197,8 @@ func getPlatformAuthToken(p *authTokenParams) (*http.Response, error) {
 		"response_type": {PlatformAuthResponseType},
 	}
 	req, _ := http.NewRequest(http.MethodGet, PlatformAuth0Url+urlParams.Encode(), nil)
-	req.Header.Set("Content-Type", cons.ContentType)
-	req.Header.Set("User-Agent", cons.UserAgent)
+	req.Header.Set("content-type", cons.ContentType)
+	req.Header.Set("user-agent", cons.UserAgentOkHttp)
 	resp, err := gClient.Do(req)
 	if err != nil {
 		fhblade.Log.Error("platform authorized url req err", zap.Error(err))
@@ -223,8 +223,8 @@ func getPlatformAuthToken(p *authTokenParams) (*http.Response, error) {
 		"action":                      {"default"},
 	}
 	req, _ = http.NewRequest(http.MethodPost, LoginUsernameUrl+state, strings.NewReader(emailCheckBody.Encode()))
-	req.Header.Set("Content-Type", cons.ContentType)
-	req.Header.Set("User-Agent", cons.UserAgent)
+	req.Header.Set("content-type", cons.ContentType)
+	req.Header.Set("user-agent", cons.UserAgentOkHttp)
 	resp, err = gClient.Do(req)
 	if err != nil {
 		fhblade.Log.Error("platform check email req err", zap.Error(err))
@@ -252,8 +252,8 @@ func getPlatformAuthToken(p *authTokenParams) (*http.Response, error) {
 		"password": {p.Password},
 	}
 	req, _ = http.NewRequest(http.MethodPost, LoginPasswordUrl+state, strings.NewReader(passwdCheckBody.Encode()))
-	req.Header.Set("Content-Type", cons.ContentType)
-	req.Header.Set("User-Agent", cons.UserAgent)
+	req.Header.Set("content-type", cons.ContentType)
+	req.Header.Set("user-agent", cons.UserAgentOkHttp)
 	gClient.SetFollowRedirect(false)
 	resp, err = gClient.Do(req)
 	if err != nil {
@@ -272,7 +272,7 @@ func getPlatformAuthToken(p *authTokenParams) (*http.Response, error) {
 
 	// 获取code
 	req, _ = http.NewRequest(http.MethodGet, Auth0Url+location, nil)
-	req.Header.Set("User-Agent", cons.UserAgent)
+	req.Header.Set("user-agent", cons.UserAgentOkHttp)
 	resp, err = gClient.Do(req)
 	if err != nil {
 		fhblade.Log.Error("platform get code req err", zap.Error(err))
@@ -304,7 +304,7 @@ func getPlatformAuthToken(p *authTokenParams) (*http.Response, error) {
 		"redirect_uri": PlatformAuthRedirectURL,
 	})
 	req, _ = http.NewRequest(http.MethodPost, OauthTokenUrl, strings.NewReader(jsonBytes))
-	req.Header.Set("Content-Type", cons.ContentTypeJSON)
-	req.Header.Set("User-Agent", cons.UserAgent)
+	req.Header.Set("content-type", cons.ContentTypeJSON)
+	req.Header.Set("user-agent", cons.UserAgentOkHttp)
 	return gClient.Do(req)
 }

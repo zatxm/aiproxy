@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/bing"
 	"github.com/zatxm/any-proxy/internal/config"
+	"github.com/zatxm/any-proxy/internal/coze/discord"
 	"github.com/zatxm/any-proxy/internal/gemini"
 	oapi "github.com/zatxm/any-proxy/internal/openai/api"
 	"github.com/zatxm/any-proxy/internal/openai/arkose/har"
@@ -36,12 +38,22 @@ func main() {
 		fmt.Println(err)
 	}
 
+	if cfg.Coze.Discord.Enable {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		go discord.Parse(ctx)
+	}
+
 	app := fhblade.New()
 
 	// ping
 	app.Get("/ping", func(c *fhblade.Context) error {
 		return c.JSONAndStatus(http.StatusOK, fhblade.H{"ping": "ok"})
 	})
+
+	// all
+	app.Post("/c/v1/chat/completions", oapi.DoChatCompletions())
 
 	// bing
 	app.Get("/bing/conversation", bing.DoListConversation())
@@ -75,6 +87,9 @@ func main() {
 
 	// proxy /public-api/*
 	app.Any("/public-api/*path", oapi.DoWeb("public-api"))
+
+	// 免登录chat会话
+	app.Post("/backend-anon/conversation", oapi.DoAnon())
 
 	// middleware - check authorization
 	app.Use(func(next fhblade.Handler) fhblade.Handler {

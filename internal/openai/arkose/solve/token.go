@@ -10,12 +10,13 @@ import (
 	"time"
 
 	http "github.com/bogdanfinn/fhttp"
-	"github.com/zatxm/any-proxy/internal/client"
-	"github.com/zatxm/any-proxy/internal/cons"
+	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/openai/arkose/har"
+	"github.com/zatxm/any-proxy/internal/vars"
 	"github.com/zatxm/any-proxy/pkg/jscrypt"
 	"github.com/zatxm/fhblade"
 	tlsClient "github.com/zatxm/tls-client"
+	"github.com/zatxm/tls-client/profiles"
 	"go.uber.org/zap"
 )
 
@@ -39,7 +40,7 @@ type arkoseResJson struct {
 func DoAkToken() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		pk := c.Get("pk")
-		arkoseToken, err := GetTokenByPk(pk)
+		arkoseToken, err := GetTokenByPk(pk, "")
 		if err != nil {
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
 		}
@@ -50,7 +51,7 @@ func DoAkToken() func(*fhblade.Context) error {
 func DoSolveToken() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		pk := c.Get("pk")
-		arkoseToken, err := DoToken(pk)
+		arkoseToken, err := DoToken(pk, "")
 		if err != nil {
 			return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
 		}
@@ -58,7 +59,7 @@ func DoSolveToken() func(*fhblade.Context) error {
 	}
 }
 
-func GetTokenByPk(pk string) (string, error) {
+func GetTokenByPk(pk, dx string) (string, error) {
 	arkoseDatas := har.GetArkoseDatas()
 	if _, ok := arkoseDatas[pk]; !ok {
 		return "", errors.New("public_key error")
@@ -66,12 +67,20 @@ func GetTokenByPk(pk string) (string, error) {
 	mom := arkoseDatas[pk]
 	datas := mom.Hars
 	arkoseToken := ""
+	tCOptions := []tlsClient.HttpClientOption{
+		tlsClient.WithTimeoutSeconds(360),
+		tlsClient.WithClientProfile(profiles.Chrome_117),
+		tlsClient.WithRandomTLSExtensionOrder(),
+		tlsClient.WithNotFollowRedirects(),
+		//tlsClient.WithCookieJar(jar),
+	}
+	proxyUrl := config.V().ProxyUrl
 	if len(datas) > 0 {
 		for k := range datas {
 			data := datas[k].Clone()
 			bt := time.Now().Unix()
 			bw := jscrypt.GenerateBw(bt)
-			bv := cons.UserAgentOkHttp
+			bv := vars.UserAgent
 			re := regexp.MustCompile(`{"key"\:"n","value"\:"\S*?"`)
 			bx := re.ReplaceAllString(data.Bx, `{"key":"n","value":"`+jscrypt.GenerateN(bt)+`"`)
 			bda, err := jscrypt.Encrypt(bx, bv+bw)
@@ -81,19 +90,24 @@ func GetTokenByPk(pk string) (string, error) {
 			}
 			data.Body.Set("bda", bda)
 			data.Body.Set("rnd", strconv.FormatFloat(rand.Float64(), 'f', -1, 64))
+			if dx != "" {
+				data.Body.Set("data[blob]", dx)
+			}
 
 			req, _ := http.NewRequest(data.Method, data.Url, strings.NewReader(data.Body.Encode()))
 			req.Header = data.Headers.Clone()
 			req.Header.Set("user-agent", bv)
-			gClient := client.CPool.Get().(tlsClient.HttpClient)
+			req.Header.Set("x-ark-esync-value", bw)
+			gClient, _ := tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), tCOptions...)
+			if proxyUrl != "" {
+				gClient.SetProxy(proxyUrl)
+			}
 			resp, err := gClient.Do(req)
 			if err != nil {
-				client.CPool.Put(gClient)
 				fhblade.Log.Error("Req arkose token error", zap.Error(err))
 				continue
 			}
 			defer resp.Body.Close()
-			client.CPool.Put(gClient)
 			if resp.StatusCode != 200 {
 				fhblade.Log.Debug("Req arkose token status code", zap.String("status", resp.Status))
 				continue
@@ -115,7 +129,7 @@ func GetTokenByPk(pk string) (string, error) {
 		bt := time.Now().Unix()
 		bx := har.GenerateBx(pk, bt)
 		bw := jscrypt.GenerateBw(bt)
-		bv := cons.UserAgentOkHttp
+		bv := vars.UserAgent
 		bda, err := jscrypt.Encrypt(bx, bv+bw)
 		if err != nil {
 			fhblade.Log.Error("Generate CryptoJsAesEncrypt error", zap.Error(err))
@@ -131,21 +145,26 @@ func GetTokenByPk(pk string) (string, error) {
 		bd.Set("capi_mode", "lightbox")
 		bd.Set("style_theme", "default")
 		bd.Set("rnd", strconv.FormatFloat(rand.Float64(), 'f', -1, 64))
+		if dx != "" {
+			bd.Set("data[blob]", dx)
+		}
 
 		gUrl := mom.ClientConfigSurl + "/fc/gt2/public_key/" + pk
 		req, _ := http.NewRequest("POST", gUrl, strings.NewReader(bd.Encode()))
 		req.Header = defaultTokenHeader
 		req.Header.Set("origin", mom.ClientConfigSurl)
+		req.Header.Set("x-ark-esync-value", bw)
 		req.Header.Set("user-agent", bv)
-		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		gClient, _ := tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), tCOptions...)
+		if proxyUrl != "" {
+			gClient.SetProxy(proxyUrl)
+		}
 		resp, err := gClient.Do(req)
 		if err != nil {
-			client.CPool.Put(gClient)
 			fhblade.Log.Error("Last req arkose token error", zap.Error(err))
 			return "", err
 		}
 		defer resp.Body.Close()
-		client.CPool.Put(gClient)
 		if resp.StatusCode != 200 {
 			fhblade.Log.Debug("Last req arkose token status code", zap.String("status", resp.Status))
 			return "", errors.New("req arkose token status code error")

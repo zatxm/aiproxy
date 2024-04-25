@@ -1,22 +1,43 @@
 package api
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"math/rand"
 	ohttp "net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/bogdanfinn/fhttp/httputil"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/config"
-	"github.com/zatxm/any-proxy/internal/cons"
+	"github.com/zatxm/any-proxy/internal/openai/cst"
+	"github.com/zatxm/any-proxy/internal/types"
+	"github.com/zatxm/any-proxy/internal/vars"
 	"github.com/zatxm/fhblade"
+	"github.com/zatxm/fhblade/tools"
 	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/sha3"
+)
+
+const (
+	Provider = "openai-chat-web"
+)
+
+var (
+	cores           = []int{8, 12, 16, 24}
+	screens         = []int{3000, 4000, 6000}
+	timeLocation, _ = time.LoadLocation("Asia/Shanghai")
+	timeLayout      = "Mon Jan 2 2006 15:04:05"
 )
 
 func DoWeb(tag string) func(*fhblade.Context) error {
@@ -31,21 +52,15 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 		// 防止乱七八糟的header被拒，特别是开启https的cf域名从大陆访问
 		accept := c.Request().Header("Accept")
 		if accept == "" {
-			accept = "*/*"
+			accept = vars.AcceptAll
 		}
 		c.Request().Req().Header = http.Header{
-			"accept":          {accept},
-			"accept-encoding": cons.AcceptEncoding,
-			"user-agent":      {cons.UserAgentOkHttp},
-			"content-type":    {cons.ContentTypeJSON},
-			"authorization":   {c.Request().Header("Authorization")},
-			http.HeaderOrderKey: {
-				"accept",
-				"accept-encoding",
-				"user-agent",
-				"content-type",
-				"authorization",
-			},
+			"accept":        {accept},
+			"authorization": {c.Request().Header("Authorization")},
+			"content-type":  {vars.ContentTypeJSON},
+			"oai-device-id": {cst.OaiDeviceId},
+			"oai-language":  {cst.OaiLanguage},
+			"user-agent":    {vars.UserAgent},
 		}
 		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		defer client.CPool.Put(gClient)
@@ -65,57 +80,225 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 }
 
 func DoAsk(c *fhblade.Context, tag string) error {
-	b, err := c.Request().RawData()
-	if err != nil {
-		fhblade.Log.Error("openai send msg read req body err", zap.Error(err))
-		return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
+	// 参数
+	var p types.CompletionWebRequest
+	if err := c.ShouldBindJSON(&p); err != nil {
+		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "params error",
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
 	}
-	goUrl := "https://chat.openai.com/" + tag + "/conversation"
-	req, err := http.NewRequest(http.MethodPost, goUrl, bytes.NewBuffer(b))
+	auth := c.Request().Header("Authorization")
+	resp, code, err := askConversationWebHttp(p, tag, auth)
 	if err != nil {
-		fhblade.Log.Error("openai send msg new req err", zap.Error(err))
-		return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
+		return c.JSONAndStatus(code, err)
 	}
-	accept := c.Request().Header("Accept")
-	if accept == "" {
-		accept = "*/*"
+	return handleOriginStreamData(c, resp)
+}
+
+func askConversationWebHttp(p types.CompletionWebRequest, mt, auth string) (*http.Response, int, *types.ErrorResponse) {
+	chatCfg, ok := cst.ChatAskMap[mt]
+	if !ok {
+		return nil, http.StatusInternalServerError, &types.ErrorResponse{
+			Error: &types.CError{
+				Message: "config error",
+				CType:   "invalid_config_error",
+				Code:    "system_err",
+			},
+		}
+	}
+
+	// anon token
+	requirementsUrl := chatCfg["requirementsUrl"]
+	req, err := http.NewRequest(http.MethodPost, requirementsUrl, nil)
+	if err != nil {
+		fhblade.Log.Error("chat-requirements new req err",
+			zap.Error(err),
+			zap.String("tag", mt))
+		return nil, http.StatusBadRequest, &types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		}
 	}
 	req.Header = http.Header{
-		"accept":          {accept},
-		"accept-encoding": cons.AcceptEncoding,
-		"user-agent":      {cons.UserAgentOkHttp},
-		"content-type":    {cons.ContentTypeJSON},
-		"authorization":   {c.Request().Header("Authorization")},
-		http.HeaderOrderKey: {
-			"accept",
-			"accept-encoding",
-			"user-agent",
-			"content-type",
-			"authorization",
-		},
+		"accept":          {vars.AcceptAll},
+		"accept-encoding": {vars.AcceptEncoding},
+		"content-type":    {vars.ContentTypeJSON},
+		"oai-device-id":   {cst.OaiDeviceId},
+		"oai-language":    {cst.OaiLanguage},
+		"origin":          {cst.ChatOriginUrl},
+		"referer":         {cst.ChatRefererUrl},
+		"user-agent":      {vars.UserAgent},
 	}
-	gClient := client.CPool.Get().(tlsClient.HttpClient)
+	if mt != "backend-anon" {
+		req.Header.Set("authorization", auth)
+	}
+	gClient := client.CcPool.Get().(tlsClient.HttpClient)
 	resp, err := gClient.Do(req)
 	if err != nil {
-		client.CPool.Put(gClient)
-		fhblade.Log.Error("openai send msg req err", zap.Error(err))
-		return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
+		client.CcPool.Put(gClient)
+		fhblade.Log.Error("chat-requirements req err",
+			zap.Error(err),
+			zap.String("tag", mt))
+		return nil, http.StatusInternalServerError, &types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		}
 	}
-	client.CPool.Put(gClient)
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return c.JSONAndStatus(resp.StatusCode, fhblade.H{"errorMessage": "request state error"})
-	}
-	res := map[string]interface{}{}
+	res := &types.RequirementsTokenRes{}
 	err = fhblade.Json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
-		fhblade.Log.Error("openai send msg res err", zap.Any("data", res))
-		return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": err.Error()})
+		client.CcPool.Put(gClient)
+		fhblade.Log.Error("chat-requirements res err",
+			zap.Error(err),
+			zap.Any("data", res),
+			zap.String("tag", mt))
+		return nil, http.StatusInternalServerError, &types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		}
+	}
+	if res.Token == "" {
+		client.CcPool.Put(gClient)
+		fhblade.Log.Error("chat-requirements res no token",
+			zap.Any("data", res),
+			zap.String("tag", mt))
+		return nil, http.StatusInternalServerError, &types.ErrorResponse{
+			Error: &types.CError{
+				Message: "Requirement token error",
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		}
+	}
+
+	// chat
+	p.HistoryAndTrainingDisabled = false
+	p.ConversationMode = map[string]string{"kind": "primary_assistant"}
+	p.ForceParagen = false
+	p.ForceParagenModelSlug = ""
+	p.ForceNulligen = false
+	p.ForceRateLimit = false
+	p.WebsocketRequestId = uuid.NewString()
+	reqJson, _ := fhblade.Json.Marshal(p)
+	chatUrl := chatCfg["askUrl"]
+	req, err = http.NewRequest(http.MethodPost, chatUrl, bytes.NewReader(reqJson))
+	if err != nil {
+		fhblade.Log.Error("openai send msg new req err",
+			zap.Error(err),
+			zap.String("tag", mt))
+		return nil, http.StatusInternalServerError, &types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		}
+	}
+	req.Header = http.Header{
+		"accept":          {vars.AcceptStream},
+		"accept-encoding": {vars.AcceptEncoding},
+		"content-type":    {vars.ContentTypeJSON},
+		"oai-device-id":   {cst.OaiDeviceId},
+		"oai-language":    {cst.OaiLanguage},
+		"openai-sentinel-chat-requirements-token": {res.Token},
+		"origin":     {cst.ChatOriginUrl},
+		"referer":    {cst.ChatRefererUrl},
+		"user-agent": {vars.UserAgent},
+	}
+	if mt != "backend-anon" {
+		req.Header.Set("authorization", auth)
+	}
+	if res.Arkose.Required {
+		req.Header.Set("openai-sentinel-arkose-token", p.ArkoseToken)
+	}
+	if res.Proofofwork.Required {
+		proofToken := GenerateProofToken(res.Proofofwork.Seed, res.Proofofwork.Difficulty)
+		req.Header.Set("openai-sentinel-proof-token", proofToken)
+	}
+	resp, err = gClient.Do(req)
+	if err != nil {
+		client.CcPool.Put(gClient)
+		fhblade.Log.Error("openai anon send msg req err",
+			zap.Error(err),
+			zap.String("tag", mt))
+		return nil, http.StatusInternalServerError, &types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		}
+	}
+	client.CcPool.Put(gClient)
+	return resp, resp.StatusCode, nil
+}
+
+func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
+	defer resp.Body.Close()
+	if strings.Contains(resp.Header.Get("Content-Type"), "event-stream") {
+		return c.Reader(resp.Body)
+	}
+	rw := c.Response().Rw()
+	flusher, ok := rw.(http.Flusher)
+	if !ok {
+		return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "Flushing not supported",
+				CType:   "invalid_systems_error",
+				Code:    "systems_error",
+			},
+		})
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := tools.ReadAll(resp.Body)
+		fhblade.Log.Error("openai send msg res status err", zap.ByteString("data", body))
+		return c.JSONAndStatus(resp.StatusCode, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "request status error",
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+	res := map[string]interface{}{}
+	err := fhblade.Json.NewDecoder(resp.Body).Decode(&res)
+	if err != nil {
+		body, _ := tools.ReadAll(resp.Body)
+		fhblade.Log.Error("openai send msg res err",
+			zap.Error(err),
+			zap.ByteString("data", body))
+		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
 	}
 	wsUrl, ok := res["wss_url"]
 	if !ok {
-		fhblade.Log.Debug("openai send msg res wss err", zap.Error(err))
-		return c.JSONAndStatus(http.StatusInternalServerError, fhblade.H{"errorMessage": "res error"})
+		fhblade.Log.Debug("openai send msg res wss err", zap.Any("data", res))
+		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "data error",
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
 	}
 
 	dialer := websocket.DefaultDialer
@@ -126,27 +309,35 @@ func DoAsk(c *fhblade.Context, tag string) error {
 			fhblade.Log.Error("openai send msg set proxy err",
 				zap.Error(err),
 				zap.String("url", proxyCfgUrl))
-			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
+			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+				Error: &types.CError{
+					Message: err.Error(),
+					CType:   "invalid_request_error",
+					Code:    "request_err",
+				},
+			})
 		}
 		dialer.Proxy = ohttp.ProxyURL(proxyURL)
 	}
 	headers := make(ohttp.Header)
-	headers.Set("User-Agent", cons.UserAgentOkHttp)
-	fhblade.Log.Debug("wss url", zap.String("url", wsUrl.(string)))
+	headers.Set("User-Agent", vars.UserAgent)
 	wc, _, err := dialer.Dial(wsUrl.(string), headers)
 	if err != nil {
-		fhblade.Log.Error("openai send msg wc req err", zap.Error(err))
-		return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": err.Error()})
+		fhblade.Log.Error("openai send msg wc req err",
+			zap.Error(err),
+			zap.String("url", wsUrl.(string)))
+		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
 	}
 	defer wc.Close()
 
-	rw := c.Response().Rw()
-	flusher, ok := rw.(http.Flusher)
-	if !ok {
-		return c.JSONAndStatus(http.StatusNotImplemented, fhblade.H{"errorMessage": "Flushing not supported"})
-	}
 	header := rw.Header()
-	header.Set("Content-Type", cons.ContentTypeStream)
+	header.Set("Content-Type", vars.ContentTypeStream)
 	header.Set("Cache-Control", "no-cache")
 	header.Set("Connection", "keep-alive")
 	header.Set("Access-Control-Allow-Origin", "*")
@@ -205,4 +396,379 @@ func DoAsk(c *fhblade.Context, tag string) error {
 	}
 
 	return nil
+}
+
+func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
+	defer resp.Body.Close()
+	rw := c.Response().Rw()
+	flusher, ok := rw.(http.Flusher)
+	if !ok {
+		return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "Flushing not supported",
+				CType:   "invalid_systems_error",
+				Code:    "systems_error",
+			},
+		})
+	}
+	if strings.Contains(resp.Header.Get("Content-Type"), "event-stream") {
+		header := rw.Header()
+		header.Set("Content-Type", vars.ContentTypeStream)
+		header.Set("Cache-Control", "no-cache")
+		header.Set("Connection", "keep-alive")
+		header.Set("Access-Control-Allow-Origin", "*")
+		rw.WriteHeader(200)
+		// 读取响应体
+		reader := bufio.NewReader(resp.Body)
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				if err != io.EOF {
+					fhblade.Log.Error("openai chat api v1 send msg res read err", zap.Error(err))
+				}
+				break
+			}
+			if line == "\n" {
+				continue
+			}
+			raw := line[6:]
+			if !strings.HasPrefix(raw, "[DONE]") {
+				raw = strings.TrimSuffix(raw, "\n")
+				chatRes := &types.CompletionWebResponse{}
+				err := fhblade.Json.UnmarshalFromString(raw, &chatRes)
+				if err != nil {
+					fhblade.Log.Error("openai chat api v1 wc deal data err",
+						zap.Error(err),
+						zap.String("data", line))
+					continue
+				}
+				if chatRes.Error != nil {
+					fmt.Fprintf(rw, "data: %s\n\n", raw)
+					flusher.Flush()
+					break
+				}
+				parts := chatRes.Message.Content.Parts
+				if len(parts) > 0 && chatRes.Message.Author.Role == "assistant" && parts[0] != "" {
+					var choices []*types.Choice
+					choices = append(choices, &types.Choice{
+						Index: 0,
+						Message: &types.ResMessageOrDelta{
+							Role:    "assistant",
+							Content: parts[0],
+						},
+					})
+					outRes := &types.CompletionResponse{
+						ID:      chatRes.Message.ID,
+						Choices: choices,
+						Created: int64(chatRes.Message.CreateTime),
+						Model:   chatRes.Message.Metadata.ModelSlug,
+						Object:  "chat.completion.chunk",
+						OpenAiWeb: &types.OpenAiWebConversation{
+							ID:              chatRes.ConversationID,
+							ParentMessageId: chatRes.Message.Metadata.ParentId,
+							LastMessageId:   chatRes.Message.ID,
+						},
+					}
+					outJson, _ := fhblade.Json.Marshal(outRes)
+					fmt.Fprintf(rw, "data: %s\n\n", outJson)
+					flusher.Flush()
+				}
+			}
+		}
+		fmt.Fprint(rw, "data: [DONE]\n\n")
+		flusher.Flush()
+		return nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := tools.ReadAll(resp.Body)
+		fhblade.Log.Error("openai send msg res status err", zap.ByteString("data", body))
+		return c.JSONAndStatus(resp.StatusCode, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "request status error",
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+	res := map[string]interface{}{}
+	err := fhblade.Json.NewDecoder(resp.Body).Decode(&res)
+	if err != nil {
+		body, _ := tools.ReadAll(resp.Body)
+		fhblade.Log.Error("openai send msg res err",
+			zap.Error(err),
+			zap.ByteString("data", body))
+		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+	wsUrl, ok := res["wss_url"]
+	if !ok {
+		fhblade.Log.Debug("openai send msg res wss err", zap.Any("data", res))
+		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "data error",
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+
+	dialer := websocket.DefaultDialer
+	proxyCfgUrl := config.V().ProxyUrl
+	if proxyCfgUrl != "" {
+		proxyURL, err := url.Parse(proxyCfgUrl)
+		if err != nil {
+			fhblade.Log.Error("openai send msg set proxy err",
+				zap.Error(err),
+				zap.String("url", proxyCfgUrl))
+			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+				Error: &types.CError{
+					Message: err.Error(),
+					CType:   "invalid_request_error",
+					Code:    "request_err",
+				},
+			})
+		}
+		dialer.Proxy = ohttp.ProxyURL(proxyURL)
+	}
+	headers := make(ohttp.Header)
+	headers.Set("User-Agent", vars.UserAgent)
+	wc, _, err := dialer.Dial(wsUrl.(string), headers)
+	if err != nil {
+		fhblade.Log.Error("openai send msg wc req err",
+			zap.Error(err),
+			zap.String("url", wsUrl.(string)))
+		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+	defer wc.Close()
+
+	header := rw.Header()
+	header.Set("Content-Type", vars.ContentTypeStream)
+	header.Set("Cache-Control", "no-cache")
+	header.Set("Connection", "keep-alive")
+	header.Set("Access-Control-Allow-Origin", "*")
+	rw.WriteHeader(200)
+
+	cancle := make(chan struct{})
+	// 处理返回数据
+	go func() {
+		for {
+			_, msg, err := wc.ReadMessage()
+			if err != nil {
+				fhblade.Log.Error("openai send msg wc read err", zap.Error(err))
+				close(cancle)
+				return
+			}
+			one := map[string]interface{}{}
+			err = fhblade.Json.Unmarshal(msg, &one)
+			if err != nil {
+				fhblade.Log.Error("openai send msg wc read one err",
+					zap.Error(err),
+					zap.ByteString("data", msg))
+				close(cancle)
+				return
+			}
+			if one["body"].(string) == "ZGF0YTogW0RPTkVdCgo=" {
+				fmt.Fprint(rw, "data: [DONE]\n\n")
+				flusher.Flush()
+				close(cancle)
+				return
+			}
+			last, err := base64.StdEncoding.DecodeString(one["body"].(string))
+			if err != nil {
+				fhblade.Log.Error("openai send msg wc read last err",
+					zap.Error(err),
+					zap.ByteString("data", msg))
+				close(cancle)
+				return
+			}
+			raw := tools.BytesToString(last)
+			raw = raw[6:]
+			if !strings.HasPrefix(raw, "[DONE]") {
+				raw = strings.TrimSuffix(raw, "\n\n")
+				chatRes := &types.CompletionWebResponse{}
+				err := fhblade.Json.UnmarshalFromString(raw, &chatRes)
+				if err != nil {
+					fhblade.Log.Error("openai send msg wc deal data err",
+						zap.Error(err),
+						zap.ByteString("data", last))
+					continue
+				}
+				if chatRes.Error != nil {
+					fmt.Fprintf(rw, "data: %s\n\n", raw)
+					flusher.Flush()
+					close(cancle)
+					return
+				}
+				parts := chatRes.Message.Content.Parts
+				if len(parts) > 0 && chatRes.Message.Author.Role == "assistant" && parts[0] != "" {
+					var choices []*types.Choice
+					choices = append(choices, &types.Choice{
+						Index: 0,
+						Message: &types.ResMessageOrDelta{
+							Role:    "assistant",
+							Content: parts[0],
+						},
+					})
+					outRes := &types.CompletionResponse{
+						ID:      chatRes.Message.ID,
+						Choices: choices,
+						Created: int64(chatRes.Message.CreateTime),
+						Model:   chatRes.Message.Metadata.ModelSlug,
+						Object:  "chat.completion.chunk",
+						OpenAiWeb: &types.OpenAiWebConversation{
+							ID:              chatRes.ConversationID,
+							ParentMessageId: chatRes.Message.Metadata.ParentId,
+							LastMessageId:   chatRes.Message.ID,
+						},
+					}
+					outJson, _ := fhblade.Json.Marshal(outRes)
+					fmt.Fprintf(rw, "data: %s\n\n", outJson)
+					flusher.Flush()
+				}
+			}
+		}
+	}()
+
+	timer := time.NewTimer(900 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case <-cancle:
+			wc.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			return nil
+		case <-timer.C:
+			close(cancle)
+			wc.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func DoAnon() func(*fhblade.Context) error {
+	return func(c *fhblade.Context) error {
+		// 参数
+		var p types.CompletionWebRequest
+		if err := c.ShouldBindJSON(&p); err != nil {
+			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+				Error: &types.CError{
+					Message: "params error",
+					CType:   "invalid_request_error",
+					Code:    "request_err",
+				},
+			})
+		}
+		resp, code, err := askConversationWebHttp(p, "backend-anon", "")
+		if err != nil {
+			return c.JSONAndStatus(code, err)
+		}
+		return handleOriginStreamData(c, resp)
+	}
+}
+
+func parseNowTime() string {
+	now := time.Now()
+	now = now.In(timeLocation)
+	return now.Format(timeLayout) + " GMT+0800 (中国标准时间)"
+}
+
+func parseProofTokenConfig() []interface{} {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	core := cores[rand.Intn(4)]
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	screen := screens[rand.Intn(3)]
+	return []interface{}{core + screen, parseNowTime(), int64(4294705152), 0, vars.UserAgent}
+}
+
+func GenerateProofToken(seed string, diff string) string {
+	config := parseProofTokenConfig()
+	diffLen := len(diff) / 2
+	hasher := sha3.New512()
+	for i := 0; i < 100000; i++ {
+		config[3] = i
+		json, _ := fhblade.Json.Marshal(config)
+		base := base64.StdEncoding.EncodeToString(json)
+		hasher.Write([]byte(seed + base))
+		hash := hasher.Sum(nil)
+		hasher.Reset()
+		if hex.EncodeToString(hash[:diffLen]) <= diff {
+			return "gAAAAAB" + base
+		}
+	}
+	return "gAAAAABwQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.StdEncoding.EncodeToString([]byte(`"`+seed+`"`))
+}
+
+func DoChatCompletionsByWeb(c *fhblade.Context, p types.CompletionRequest) error {
+	// 判断、构造请求参数
+	prompt := p.ParsePromptText()
+	if prompt == "" {
+		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "params error",
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+	if p.OpenAiWeb == nil {
+		p.OpenAiWeb = &types.OpenAiWebCompletionRequest{}
+	}
+	if p.OpenAiWeb.Conversation == nil {
+		p.OpenAiWeb.Conversation = &types.OpenAiWebConversation{}
+	}
+	messageId := ""
+	if p.OpenAiWeb.MessageId != "" {
+		messageId = p.OpenAiWeb.MessageId
+	} else {
+		messageId = uuid.NewString()
+	}
+	var messages []*types.MessageWeb
+	messages = append(messages, &types.MessageWeb{
+		Id:     messageId,
+		Author: &types.AuthorWeb{Role: "user"},
+		Content: &types.ContentWeb{
+			ContentType: "text",
+			Parts:       []string{prompt},
+		},
+	})
+	parentMessageId := ""
+	if p.OpenAiWeb.Conversation.LastMessageId != "" {
+		parentMessageId = p.OpenAiWeb.Conversation.LastMessageId
+	} else {
+		parentMessageId = uuid.NewString()
+	}
+	rp := &types.CompletionWebRequest{
+		Action:          "next",
+		Messages:        messages,
+		ParentMessageId: parentMessageId,
+		Model:           p.Model,
+	}
+	if p.OpenAiWeb.Conversation.ID != "" {
+		rp.ConversationId = p.OpenAiWeb.Conversation.ID
+	}
+	if p.OpenAiWeb.ArkoseToken != "" {
+		rp.ArkoseToken = p.OpenAiWeb.ArkoseToken
+	}
+	auth := c.Request().Header("Authorization")
+	mt := "backend-api"
+	if auth == "" {
+		mt = "backend-anon"
+	}
+	resp, code, err := askConversationWebHttp(*rp, mt, auth)
+	if err != nil {
+		return c.JSONAndStatus(code, err)
+	}
+	return handleV1StreamData(c, resp)
 }

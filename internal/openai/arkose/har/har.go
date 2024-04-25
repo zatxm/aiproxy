@@ -150,7 +150,7 @@ func Parse() error {
 				continue
 			}
 			data := &harData{}
-			tagKey := "fc/gt2/public_key"
+			tagKey := "openai.com/fc/gt2/"
 			arkoseKey := "abc"
 			for k := range hfData.Log.Entries {
 				v := hfData.Log.Entries[k]

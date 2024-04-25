@@ -11,8 +11,8 @@ import (
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/config"
-	"github.com/zatxm/any-proxy/internal/cons"
 	"github.com/zatxm/any-proxy/internal/openai/arkose/funcaptcha"
+	"github.com/zatxm/any-proxy/internal/vars"
 	"github.com/zatxm/any-proxy/pkg/support"
 	"github.com/zatxm/fhblade"
 	"github.com/zatxm/fhblade/tools"
@@ -20,8 +20,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func DoToken(pk string) (string, error) {
-	arkoseToken, err := GetTokenByPk(pk)
+func DoToken(pk, dx string) (string, error) {
+	arkoseToken, err := GetTokenByPk(pk, dx)
 	if err == nil {
 		return arkoseToken, nil
 	}
@@ -76,7 +76,7 @@ func solveServiceDo(imgs []string) ([]int, error) {
 	l := len(imgs)
 	rChan := make(chan map[string]interface{}, l)
 	defer close(rChan)
-	doRes := make([]map[string]interface{}, l)
+	var doRes []map[string]interface{}
 	for k := range imgs {
 		go func(tag int, b string, rc chan map[string]interface{}) {
 			jsonBytes, _ := fhblade.Json.MarshalToString(map[string]string{
@@ -84,7 +84,7 @@ func solveServiceDo(imgs []string) ([]int, error) {
 				"image":    b,
 			})
 			req, _ := http.NewRequest(http.MethodPost, solveApiUrl, strings.NewReader(jsonBytes))
-			req.Header.Set("Content-Type", cons.ContentTypeJSON)
+			req.Header.Set("Content-Type", vars.ContentTypeJSON)
 			gClient := client.CPool.Get().(tlsClient.HttpClient)
 			resp, err := gClient.Do(req)
 			var rMap interface{}
@@ -109,6 +109,7 @@ func solveServiceDo(imgs []string) ([]int, error) {
 		t := <-rChan
 		doRes = append(doRes, t)
 	}
+	// fmt.Println(doRes)
 	answerIndexs := make([]int, l)
 	for k := range doRes {
 		t := doRes[k]

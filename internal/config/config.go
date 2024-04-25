@@ -16,6 +16,7 @@ type Config struct {
 	Gemini    gemini    `yaml:"google_gemini"`
 	Arkose    arkose    `yaml:"arkose"`
 	Bing      bing      `yaml:"bing"`
+	Coze      coze      `yaml:"coze"`
 }
 
 type httpsInfo struct {
@@ -39,6 +40,34 @@ type arkose struct {
 
 type bing struct {
 	ProxyUrl string `yaml:"proxy_url"`
+}
+
+type coze struct {
+	Discord *cozeDiscord `yaml:"discord"`
+	ApiChat *cozeApiChat `yaml:"api_chat"`
+}
+
+type cozeDiscord struct {
+	Enable               bool     `yaml:"enable"`
+	GuildId              string   `yaml:"guild_id"`
+	ChannelId            string   `yaml:"channel_id"`
+	ChatBotToken         string   `yaml:"chat_bot_token"`
+	CozeBot              []string `yaml:"coze_bot"`
+	ProxyUrl             string   `yaml:"proxy_url"`
+	RequestOutTime       int64    `yaml:"request_out_time"`
+	RequestStreamOutTime int64    `yaml:"request_stream_out_time"`
+	Auth                 []string `yaml:"auth"`
+}
+
+type cozeApiChat struct {
+	AccessToken string        `yaml:"access_token"`
+	Bots        []*cozeApiBot `yaml:"bots"`
+}
+
+type cozeApiBot struct {
+	BotId       string `yaml:"bot_id"`
+	User        string `yaml:"user"`
+	AccessToken string `yaml:"access_token"`
 }
 
 func V() *Config {

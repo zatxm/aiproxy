@@ -39,3 +39,46 @@ arkose:
 bing:
     # 部署国外vps不需要配置此代理,最好是干净IP否则会出验证码
     proxy_url: http://127.0.0.1:1081
+
+# 相关配置
+coze:
+    # coze通过discord
+    # 创建bot A,用于交互监听信息
+    # 创建bot B、C...托管coze
+    discord:
+        # 是否开启coze discord
+        enable: false
+        # discord服务器ID
+        guild_id: 1087xx7244
+        # discord频道ID
+        channel_id: 1087xx7685
+        # bot A token
+        chat_bot_token: MTIxxvJmQkKyI
+        # 其他coze bot id
+        coze_bot:
+            - 12029xxx830
+        # discord用户Authorization,支持多个随机取值
+        # 用于发送信息
+        auth:
+            - ODk4NDxxxx2I3WLrAcIkg
+        # 代理
+        proxy_url: http://127.0.0.1:1081
+        # 对话接口非流响应下的请求超时时间
+        request_out_time: 300
+        # 对话接口流响应下的每次流返回超时时间
+        request_stream_out_time: 300
+    # coze的api通信设置
+    api_chat:
+        # 通信token
+        access_token: pat_tD0StYHdSTrHWxxrc3Gvx10x3OipnPxlGVsKbumr1voy
+        bots:
+            -
+                # bot机器ID
+                bot_id: 7317282xx21134853
+                # 标识当前与Bot交互的用户
+                user: 1000000001
+                # 通信token,没有取全局access_token
+                access_token: 
+            -
+                bot_id: 731284xx535
+                user: 1000000002

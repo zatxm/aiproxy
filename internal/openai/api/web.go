@@ -81,7 +81,7 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 
 func DoAsk(c *fhblade.Context, tag string) error {
 	// 参数
-	var p types.CompletionWebRequest
+	var p types.OpenAiCompletionChatRequest
 	if err := c.ShouldBindJSON(&p); err != nil {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
@@ -99,14 +99,14 @@ func DoAsk(c *fhblade.Context, tag string) error {
 	return handleOriginStreamData(c, resp)
 }
 
-func askConversationWebHttp(p types.CompletionWebRequest, mt, auth string) (*http.Response, int, *types.ErrorResponse) {
+func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string) (*http.Response, int, *types.ErrorResponse) {
 	chatCfg, ok := cst.ChatAskMap[mt]
 	if !ok {
 		return nil, http.StatusInternalServerError, &types.ErrorResponse{
 			Error: &types.CError{
 				Message: "config error",
 				CType:   "invalid_config_error",
-				Code:    "system_err",
+				Code:    "systems_err",
 			},
 		}
 	}
@@ -155,7 +155,7 @@ func askConversationWebHttp(p types.CompletionWebRequest, mt, auth string) (*htt
 		}
 	}
 	defer resp.Body.Close()
-	res := &types.RequirementsTokenRes{}
+	res := &types.RequirementsTokenResponse{}
 	err = fhblade.Json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		client.CcPool.Put(gClient)
@@ -435,7 +435,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 			raw := line[6:]
 			if !strings.HasPrefix(raw, "[DONE]") {
 				raw = strings.TrimSuffix(raw, "\n")
-				chatRes := &types.CompletionWebResponse{}
+				chatRes := &types.OpenAiCompletionChatResponse{}
 				err := fhblade.Json.UnmarshalFromString(raw, &chatRes)
 				if err != nil {
 					fhblade.Log.Error("openai chat api v1 wc deal data err",
@@ -464,7 +464,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 						Created: int64(chatRes.Message.CreateTime),
 						Model:   chatRes.Message.Metadata.ModelSlug,
 						Object:  "chat.completion.chunk",
-						OpenAiWeb: &types.OpenAiWebConversation{
+						OpenAiWeb: &types.OpenAiConversation{
 							ID:              chatRes.ConversationID,
 							ParentMessageId: chatRes.Message.Metadata.ParentId,
 							LastMessageId:   chatRes.Message.ID,
@@ -597,7 +597,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 			raw = raw[6:]
 			if !strings.HasPrefix(raw, "[DONE]") {
 				raw = strings.TrimSuffix(raw, "\n\n")
-				chatRes := &types.CompletionWebResponse{}
+				chatRes := &types.OpenAiCompletionChatResponse{}
 				err := fhblade.Json.UnmarshalFromString(raw, &chatRes)
 				if err != nil {
 					fhblade.Log.Error("openai send msg wc deal data err",
@@ -627,7 +627,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 						Created: int64(chatRes.Message.CreateTime),
 						Model:   chatRes.Message.Metadata.ModelSlug,
 						Object:  "chat.completion.chunk",
-						OpenAiWeb: &types.OpenAiWebConversation{
+						OpenAiWeb: &types.OpenAiConversation{
 							ID:              chatRes.ConversationID,
 							ParentMessageId: chatRes.Message.Metadata.ParentId,
 							LastMessageId:   chatRes.Message.ID,
@@ -661,7 +661,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 func DoAnon() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		// 参数
-		var p types.CompletionWebRequest
+		var p types.OpenAiCompletionChatRequest
 		if err := c.ShouldBindJSON(&p); err != nil {
 			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 				Error: &types.CError{
@@ -723,44 +723,44 @@ func DoChatCompletionsByWeb(c *fhblade.Context, p types.CompletionRequest) error
 			},
 		})
 	}
-	if p.OpenAiWeb == nil {
-		p.OpenAiWeb = &types.OpenAiWebCompletionRequest{}
+	if p.OpenAi == nil {
+		p.OpenAi = &types.OpenAiCompletionRequest{}
 	}
-	if p.OpenAiWeb.Conversation == nil {
-		p.OpenAiWeb.Conversation = &types.OpenAiWebConversation{}
+	if p.OpenAi.Conversation == nil {
+		p.OpenAi.Conversation = &types.OpenAiConversation{}
 	}
 	messageId := ""
-	if p.OpenAiWeb.MessageId != "" {
-		messageId = p.OpenAiWeb.MessageId
+	if p.OpenAi.MessageId != "" {
+		messageId = p.OpenAi.MessageId
 	} else {
 		messageId = uuid.NewString()
 	}
-	var messages []*types.MessageWeb
-	messages = append(messages, &types.MessageWeb{
+	var messages []*types.OpenAiMessage
+	messages = append(messages, &types.OpenAiMessage{
 		Id:     messageId,
-		Author: &types.AuthorWeb{Role: "user"},
-		Content: &types.ContentWeb{
+		Author: &types.OpenAiAuthor{Role: "user"},
+		Content: &types.OpenAiContent{
 			ContentType: "text",
 			Parts:       []string{prompt},
 		},
 	})
 	parentMessageId := ""
-	if p.OpenAiWeb.Conversation.LastMessageId != "" {
-		parentMessageId = p.OpenAiWeb.Conversation.LastMessageId
+	if p.OpenAi.Conversation.LastMessageId != "" {
+		parentMessageId = p.OpenAi.Conversation.LastMessageId
 	} else {
 		parentMessageId = uuid.NewString()
 	}
-	rp := &types.CompletionWebRequest{
+	rp := &types.OpenAiCompletionChatRequest{
 		Action:          "next",
 		Messages:        messages,
 		ParentMessageId: parentMessageId,
 		Model:           p.Model,
 	}
-	if p.OpenAiWeb.Conversation.ID != "" {
-		rp.ConversationId = p.OpenAiWeb.Conversation.ID
+	if p.OpenAi.Conversation.ID != "" {
+		rp.ConversationId = p.OpenAi.Conversation.ID
 	}
-	if p.OpenAiWeb.ArkoseToken != "" {
-		rp.ArkoseToken = p.OpenAiWeb.ArkoseToken
+	if p.OpenAi.ArkoseToken != "" {
+		rp.ArkoseToken = p.OpenAi.ArkoseToken
 	}
 	auth := c.Request().Header("Authorization")
 	mt := "backend-api"

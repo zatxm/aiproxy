@@ -3,6 +3,7 @@ package api
 import (
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/bing"
+	"github.com/zatxm/any-proxy/internal/claude"
 	coze "github.com/zatxm/any-proxy/internal/coze/api"
 	"github.com/zatxm/any-proxy/internal/gemini"
 	"github.com/zatxm/any-proxy/internal/types"
@@ -30,6 +31,8 @@ func DoChatCompletions() func(*fhblade.Context) error {
 			return bing.DoChatCompletions(c, p)
 		case coze.Provider:
 			return coze.DoChatCompletions(c, p)
+		case claude.Provider:
+			return claude.DoChatCompletions(c, p)
 		default:
 			return DoHttp(c, "/v1/chat/completions")
 		}

@@ -17,6 +17,7 @@ type Config struct {
 	Arkose    arkose    `yaml:"arkose"`
 	Bing      bing      `yaml:"bing"`
 	Coze      coze      `yaml:"coze"`
+	Claude    claude    `yaml:"claude"`
 }
 
 type httpsInfo struct {
@@ -68,6 +69,15 @@ type cozeApiBot struct {
 	BotId       string `yaml:"bot_id"`
 	User        string `yaml:"user"`
 	AccessToken string `yaml:"access_token"`
+}
+
+type claude struct {
+	WebSessions []*websession `yaml:"web_sessions"`
+}
+
+type websession struct {
+	Val            string `yaml:"val"`
+	OrganizationId string `yaml:"organization_id"`
 }
 
 func V() *Config {

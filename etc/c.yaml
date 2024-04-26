@@ -82,3 +82,14 @@ coze:
             -
                 bot_id: 731284xx535
                 user: 1000000002
+
+
+# claude配置
+claude:
+    # web chat cookie里面的sessionKey值
+    web_sessions:
+        -
+            # cookie值
+            val: sk-ant-sid01-anIGofTkl4RhcJYxxxVDWvwk6hB3CZigfH2Cw-ZbwI3AAA
+            # 组织ID,可以不用设置
+            organization_id:

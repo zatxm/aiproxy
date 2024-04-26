@@ -2,6 +2,7 @@ package types
 
 import (
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/zatxm/any-proxy/internal/config"
@@ -9,28 +10,29 @@ import (
 )
 
 type CompletionRequest struct {
-	Messages         []*ReqMessage               `json:"messages" binding:"required"`
-	Model            string                      `json:"model" binding:"required"`
-	FrequencyPenalty float64                     `json:"frequency_penalty,omitempty"`
-	LogitBias        interface{}                 `json:"logit_bias,omitempty"`
-	Logprobs         bool                        `json:"logprobs,omitempty"`
-	TopLogprobs      int                         `json:"top_logprobs,omitempty"`
-	MaxTokens        int                         `json:"max_tokens,omitempty"`
-	N                int                         `json:"n,omitempty"`
-	PresencePenalty  float64                     `json:"presence_penalty,omitempty"`
-	ResponseFormat   map[string]string           `json:"response_format,omitempty"`
-	Seed             int                         `json:"seed,omitempty"`
-	Stop             interface{}                 `json:"stop,omitempty"`
-	Stream           bool                        `json:"stream,omitempty"`
-	Temperature      float64                     `json:"temperature,omitempty"`
-	TopP             float64                     `json:"top_p,omitempty"`
-	Tools            map[string]interface{}      `json:"tools,omitempty"`
-	ToolChoice       interface{}                 `json:"tool_choice,omitempty"`
-	User             string                      `json:"user,omitempty"`
-	Provider         string                      `json:"provider,omitempty"`
-	OpenAiWeb        *OpenAiWebCompletionRequest `json:"openai_web,omitempty"`
-	Bing             *BingCompletionRequest      `json:"bing,omitempty"`
-	CozeApi          *CozeApiCompletionRequest   `json:"cozeApi,omitempty"`
+	Messages         []*ReqMessage            `json:"messages" binding:"required"`
+	Model            string                   `json:"model" binding:"required"`
+	FrequencyPenalty float64                  `json:"frequency_penalty,omitempty"`
+	LogitBias        interface{}              `json:"logit_bias,omitempty"`
+	Logprobs         bool                     `json:"logprobs,omitempty"`
+	TopLogprobs      int                      `json:"top_logprobs,omitempty"`
+	MaxTokens        int                      `json:"max_tokens,omitempty"`
+	N                int                      `json:"n,omitempty"`
+	PresencePenalty  float64                  `json:"presence_penalty,omitempty"`
+	ResponseFormat   map[string]string        `json:"response_format,omitempty"`
+	Seed             int                      `json:"seed,omitempty"`
+	Stop             interface{}              `json:"stop,omitempty"`
+	Stream           bool                     `json:"stream,omitempty"`
+	Temperature      float64                  `json:"temperature,omitempty"`
+	TopP             float64                  `json:"top_p,omitempty"`
+	Tools            map[string]interface{}   `json:"tools,omitempty"`
+	ToolChoice       interface{}              `json:"tool_choice,omitempty"`
+	User             string                   `json:"user,omitempty"`
+	Provider         string                   `json:"provider,omitempty"`
+	OpenAi           *OpenAiCompletionRequest `json:"openai,omitempty"`
+	Bing             *BingCompletionRequest   `json:"bing,omitempty"`
+	Coze             *CozeCompletionRequest   `json:"cozeApi,omitempty"`
+	Claude           *ClaudeCompletionRequest `json:"claude,omitempty"`
 }
 
 type ReqMessage struct {
@@ -51,16 +53,17 @@ type CError struct {
 }
 
 type CompletionResponse struct {
-	ID                string                 `json:"id"`
-	Choices           []*Choice              `json:"choices"`
-	Created           int64                  `json:"created"`
-	Model             string                 `json:"model"`
-	SystemFingerprint string                 `json:"system_fingerprint"`
-	Object            string                 `json:"object"`
-	Usage             *Usage                 `json:"usage,omitempty"`
-	OpenAiWeb         *OpenAiWebConversation `json:"openai_web,omitempty"`
-	Bing              *BingConversation      `json:"bing,omitempty"`
-	CozeApi           *CozeApiConversation   `json:"cozeApi,omitempty"`
+	ID                string                    `json:"id"`
+	Choices           []*Choice                 `json:"choices"`
+	Created           int64                     `json:"created"`
+	Model             string                    `json:"model"`
+	SystemFingerprint string                    `json:"system_fingerprint"`
+	Object            string                    `json:"object"`
+	Usage             *Usage                    `json:"usage,omitempty"`
+	OpenAiWeb         *OpenAiConversation       `json:"openai_web,omitempty"`
+	Bing              *BingConversation         `json:"bing,omitempty"`
+	Coze              *CozeConversation         `json:"coze,omitempty"`
+	Claude            *ClaudeCompletionResponse `json:"claude,omitempty"`
 }
 
 type Choice struct {
@@ -104,22 +107,23 @@ type ImageDataURL struct {
 	URL string `json:"url"`
 }
 
-type OpenAiWebCompletionRequest struct {
-	Conversation *OpenAiWebConversation `json:"conversation,omitempty"`
-	MessageId    string                 `json:"message_id,omitempty"`
-	ArkoseToken  string                 `json:"arkose_token,omitempty"`
+type OpenAiCompletionRequest struct {
+	Conversation *OpenAiConversation `json:"conversation,omitempty"`
+	MessageId    string              `json:"message_id,omitempty"`
+	ArkoseToken  string              `json:"arkose_token,omitempty"`
 }
 
-type OpenAiWebConversation struct {
+type OpenAiConversation struct {
 	ID              string `json:"conversation_id"`
 	ParentMessageId string `json:"parent_message_id"`
 	LastMessageId   string `json:"last_message_id"`
 }
 
-type CompletionWebRequest struct {
+// open web聊天请求数据
+type OpenAiCompletionChatRequest struct {
 	Action                     string            `json:"action,omitempty"`
 	ConversationId             string            `json:"conversation_id,omitempty"`
-	Messages                   []*MessageWeb     `json:"messages" binding:"required"`
+	Messages                   []*OpenAiMessage  `json:"messages" binding:"required"`
 	ParentMessageId            string            `json:"parent_message_id" binding:"required"`
 	Model                      string            `json:"model" binding:"required"`
 	TimezoneOffsetMin          float64           `json:"timezone_offset_min,omitempty"`
@@ -134,39 +138,39 @@ type CompletionWebRequest struct {
 	ArkoseToken                string            `json:"arkose_token,omitempty"`
 }
 
-type MessageWeb struct {
-	Id      string      `json:"id" binding:"required"`
-	Author  *AuthorWeb  `json:"author" binding:"required"`
-	Content *ContentWeb `json:"content" binding:"required"`
+type OpenAiMessage struct {
+	Id      string         `json:"id" binding:"required"`
+	Author  *OpenAiAuthor  `json:"author" binding:"required"`
+	Content *OpenAiContent `json:"content" binding:"required"`
 }
 
-type AuthorWeb struct {
-	Role     string       `json:"role"`
-	Name     interface{}  `json:"name,omitempty"`
-	Metadata *MetadataWeb `json:"metadata,omitempty"`
+type OpenAiAuthor struct {
+	Role     string          `json:"role"`
+	Name     interface{}     `json:"name,omitempty"`
+	Metadata *OpenAiMetadata `json:"metadata,omitempty"`
 }
 
-type ContentWeb struct {
+type OpenAiContent struct {
 	ContentType string   `json:"content_type" binding:"required"`
 	Parts       []string `json:"parts" binding:"required"`
 }
 
-type MetadataWeb struct {
-	RequestId         string            `json:"request_id,omitempty"`
-	Timestamp         string            `json:"timestamp_,omitempty"`
-	FinishDetails     *FinishDetailsWeb `json:"finish_details,omitempty"`
-	Citations         []*Citation       `json:"citations,omitempty"`
-	GizmoId           interface{}       `json:"gizmo_id,omitempty"`
-	IsComplete        bool              `json:"is_complete,omitempty"`
-	MessageType       string            `json:"message_type,omitempty"`
-	ModelSlug         string            `json:"model_slug,omitempty"`
-	DefaultModelSlug  string            `json:"default_model_slug,omitempty"`
-	Pad               string            `json:"pad,omitempty"`
-	ParentId          string            `json:"parent_id,omitempty"`
-	ModelSwitcherDeny []interface{}     `json:"model_switcher_deny,omitempty"`
+type OpenAiMetadata struct {
+	RequestId         string         `json:"request_id,omitempty"`
+	Timestamp         string         `json:"timestamp_,omitempty"`
+	FinishDetails     *FinishDetails `json:"finish_details,omitempty"`
+	Citations         []*Citation    `json:"citations,omitempty"`
+	GizmoId           interface{}    `json:"gizmo_id,omitempty"`
+	IsComplete        bool           `json:"is_complete,omitempty"`
+	MessageType       string         `json:"message_type,omitempty"`
+	ModelSlug         string         `json:"model_slug,omitempty"`
+	DefaultModelSlug  string         `json:"default_model_slug,omitempty"`
+	Pad               string         `json:"pad,omitempty"`
+	ParentId          string         `json:"parent_id,omitempty"`
+	ModelSwitcherDeny []interface{}  `json:"model_switcher_deny,omitempty"`
 }
 
-type FinishDetailsWeb struct {
+type FinishDetails struct {
 	MType      string `json:"type"`
 	StopTokens []int  `json:"stop_tokens"`
 }
@@ -181,26 +185,26 @@ type CitaMeta struct {
 	Title string `json:"title"`
 }
 
-type CompletionWebResponse struct {
-	Message        *MessageWebResponse `json:"message"`
-	ConversationID string              `json:"conversation_id"`
-	Error          interface{}         `json:"error"`
+type OpenAiCompletionChatResponse struct {
+	Message        *OpenAiMessageResponse `json:"message"`
+	ConversationID string                 `json:"conversation_id"`
+	Error          interface{}            `json:"error"`
 }
 
-type MessageWebResponse struct {
-	ID         string       `json:"id"`
-	Author     *AuthorWeb   `json:"author"`
-	CreateTime float64      `json:"create_time"`
-	UpdateTime interface{}  `json:"update_time"`
-	Content    *ContentWeb  `json:"content"`
-	Status     string       `json:"status"`
-	EndTurn    interface{}  `json:"end_turn"`
-	Weight     float64      `json:"weight"`
-	Metadata   *MetadataWeb `json:"metadata"`
-	Recipient  string       `json:"recipient"`
+type OpenAiMessageResponse struct {
+	ID         string          `json:"id"`
+	Author     *OpenAiAuthor   `json:"author"`
+	CreateTime float64         `json:"create_time"`
+	UpdateTime interface{}     `json:"update_time"`
+	Content    *OpenAiContent  `json:"content"`
+	Status     string          `json:"status"`
+	EndTurn    interface{}     `json:"end_turn"`
+	Weight     float64         `json:"weight"`
+	Metadata   *OpenAiMetadata `json:"metadata"`
+	Recipient  string          `json:"recipient"`
 }
 
-type RequirementsTokenRes struct {
+type RequirementsTokenResponse struct {
 	Persona     string                  `json:"persona"`
 	Arkose      *RequirementArkose      `json:"arkose"`
 	Turnstile   *RequirementTurnstile   `json:"turnstile"`
@@ -242,9 +246,9 @@ func (c *CompletionRequest) ParsePromptText() string {
 // 随机获取设置的coze bot id
 func (c *CompletionRequest) ParseCozeApiBotIdAndUser(r *fhblade.Context) (string, string, string) {
 	// 可能是用户自定义
-	if c.CozeApi != nil && c.CozeApi.BotId != "" && c.CozeApi.User != "" {
-		botId := c.CozeApi.BotId
-		user := c.CozeApi.User
+	if c.Coze != nil && c.Coze.Conversation != nil && c.Coze.Conversation.BotId != "" && c.Coze.Conversation.User != "" {
+		botId := c.Coze.Conversation.BotId
+		user := c.Coze.Conversation.User
 		token := r.Request().Header("Authorization")
 		if token != "" {
 			return botId, user, token
@@ -286,4 +290,29 @@ func (c *CompletionRequest) ParseCozeApiBotIdAndUser(r *fhblade.Context) (string
 	}
 
 	return botCfg.BotId, botCfg.User, token
+}
+
+// 随机获取设置的coze bot id
+func (c *CompletionRequest) ParseClaudeWebSessionKey(r *fhblade.Context) (string, string, int) {
+	auth := r.Request().Header("Authorization")
+	if auth != "" {
+		if strings.HasPrefix(auth, "Bearer ") {
+			return strings.TrimPrefix(auth, "Bearer "), "", -1
+		}
+		return auth, "", -1
+	}
+
+	claudeSessionCfgs := config.V().Claude.WebSessions
+	l := len(claudeSessionCfgs)
+	if l == 0 {
+		return "", "", -2
+	}
+	if l == 1 {
+		return claudeSessionCfgs[0].Val, claudeSessionCfgs[0].OrganizationId, 0
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	index := rand.Intn(l)
+	claudeSessionCfg := claudeSessionCfgs[index]
+	return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, index
 }

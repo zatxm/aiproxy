@@ -236,7 +236,7 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 			Error: &types.CError{
 				Message: "config error",
 				CType:   "invalid_config_error",
-				Code:    "system_err",
+				Code:    "systems_err",
 			},
 		})
 	}
@@ -249,8 +249,8 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 		Query:  prompt,
 		Stream: true,
 	}
-	if p.CozeApi != nil && p.CozeApi.ConversationId != "" {
-		r.ConversationId = p.CozeApi.ConversationId
+	if p.Coze != nil && p.Coze.Conversation != nil && p.Coze.Conversation.ConversationId != "" {
+		r.ConversationId = p.Coze.Conversation.ConversationId
 	} else {
 		r.ConversationId = uuid.NewString()
 	}
@@ -264,7 +264,7 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 			Error: &types.CError{
 				Message: err.Error(),
 				CType:   "invalid_request_error",
-				Code:    "system_err",
+				Code:    "systems_err",
 			},
 		})
 	}
@@ -285,7 +285,7 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 			Error: &types.CError{
 				Message: err.Error(),
 				CType:   "invalid_request_error",
-				Code:    "system_err",
+				Code:    "systems_err",
 			},
 		})
 	}
@@ -298,7 +298,7 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 			Error: &types.CError{
 				Message: "Flushing not supported",
 				CType:   "invalid_request_error",
-				Code:    "system_err",
+				Code:    "systems_err",
 			},
 		})
 	}
@@ -356,7 +356,8 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 					Created: now,
 					Model:   ApiChatModel,
 					Object:  "chat.completion.chunk",
-					CozeApi: &types.CozeApiConversation{
+					Coze: &types.CozeConversation{
+						CType:          "api",
 						BotId:          botId,
 						ConversationId: chatRes.ConversationId,
 						User:           user,

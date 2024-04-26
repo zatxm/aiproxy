@@ -1,7 +1,7 @@
 package types
 
-type CozeApiCompletionRequest struct {
-	CozeApiConversation
+type CozeCompletionRequest struct {
+	Conversation *CozeConversation `json:"conversation,omitempty"`
 	// 作为上下文传递的聊天历史记录
 	ChatHistory []*CozeApiChatMessage `json:"chat_history,omitempty"`
 }
@@ -17,7 +17,8 @@ type CozeApiChatMessage struct {
 	ContentType string `json:"content_type"`
 }
 
-type CozeApiConversation struct {
+type CozeConversation struct {
+	CType string `json:"type,omitempty"`
 	// 要进行会话聊天的Bot ID
 	BotId string `json:"bot_id"`
 	// 对话标识,需自己生成

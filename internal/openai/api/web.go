@@ -197,6 +197,7 @@ func askConversationWebHttp(p types.CompletionWebRequest, mt, auth string) (*htt
 	chatUrl := chatCfg["askUrl"]
 	req, err = http.NewRequest(http.MethodPost, chatUrl, bytes.NewReader(reqJson))
 	if err != nil {
+		client.CcPool.Put(gClient)
 		fhblade.Log.Error("openai send msg new req err",
 			zap.Error(err),
 			zap.String("tag", mt))

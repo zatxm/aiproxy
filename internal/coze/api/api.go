@@ -310,7 +310,6 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 	rw.WriteHeader(200)
 	// 读取响应体
 	reader := bufio.NewReader(resp.Body)
-	var msgBuilder strings.Builder
 	now := time.Now().Unix()
 	for {
 		line, err := reader.ReadBytes('\n')
@@ -340,14 +339,12 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 				break
 			}
 			if chatRes.Message.CType == "answer" && chatRes.Message.Content != "" {
-				msgBuilder.WriteString(chatRes.Message.Content)
-				tMsg := msgBuilder.String()
 				var choices []*types.Choice
 				choices = append(choices, &types.Choice{
 					Index: chatRes.Index,
 					Message: &types.ResMessageOrDelta{
 						Role:    "assistant",
-						Content: tMsg,
+						Content: chatRes.Message.Content,
 					},
 				})
 				outRes := &types.CompletionResponse{

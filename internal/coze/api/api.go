@@ -128,6 +128,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		header.Set("Access-Control-Allow-Origin", "*")
 		rw.WriteHeader(200)
 		clientGone := rw.(http.CloseNotifier).CloseNotify()
+		lastMsg := ""
 		for {
 			select {
 			case <-clientGone:
@@ -136,11 +137,15 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 				select {
 				case reply := <-replyChan:
 					timer.Reset(durationTime)
-
-					reply.Object = "chat.completion.chunk"
-					bs, _ := fhblade.Json.MarshalToString(reply)
-					fmt.Fprintf(rw, "data: %s\n\n", bs)
-					flusher.Flush()
+					tMsg := strings.TrimPrefix(reply.Choices[0].Message.Content, lastMsg)
+					lastMsg = reply.Choices[0].Message.Content
+					if tMsg != "" {
+						reply.Choices[0].Message.Content = tMsg
+						reply.Object = "chat.completion.chunk"
+						bs, _ := fhblade.Json.MarshalToString(reply)
+						fmt.Fprintf(rw, "data: %s\n\n", bs)
+						flusher.Flush()
+					}
 				case <-timer.C:
 					fmt.Fprint(rw, "data: [DONE]\n\n")
 					flusher.Flush()

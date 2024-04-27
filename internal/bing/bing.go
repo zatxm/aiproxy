@@ -436,6 +436,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 	cancle := make(chan struct{})
 	// 处理返回数据
 	go func() {
+		lastMsg := ""
 		for {
 			_, msg, err := wc.ReadMessage()
 			if err != nil {
@@ -459,13 +460,8 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 							zap.Error(err),
 							zap.ByteString("data", msgArr[k]))
 					}
-					ts := types.CompletionResponse{
-						ID:      p.Bing.Conversation.ConversationId,
-						Created: time.Now().Unix(),
-						Model:   ThisModel,
-						Object:  "chat.completion.chunk",
-						Bing:    p.Bing.Conversation}
 					resMsg := ""
+					now := time.Now().Unix()
 					if dType, ok := resArr["type"].(float64); ok {
 						switch dType {
 						case 1:
@@ -476,7 +472,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 									if msgTime, ok := msgArr["createdAt"].(string); ok {
 										parsedTime, err := time.Parse(time.RFC3339, msgTime)
 										if err == nil {
-											ts.Created = parsedTime.Unix()
+											now = parsedTime.Unix()
 										}
 									}
 									if adaptiveCards, ok := msgArr["adaptiveCards"].([]interface{}); ok {
@@ -505,19 +501,29 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 						}
 					}
 					if resMsg != "" {
-						var choices []*types.Choice
-						choices = append(choices, &types.Choice{
-							Index: 0,
-							Message: &types.ResMessageOrDelta{
-								Role:    "assistant",
-								Content: resMsg,
-							},
-						})
-						ts.Choices = choices
+						tMsg := strings.TrimPrefix(resMsg, lastMsg)
+						lastMsg = resMsg
+						if tMsg != "" {
+							var choices []*types.Choice
+							choices = append(choices, &types.Choice{
+								Index: 0,
+								Message: &types.ResMessageOrDelta{
+									Role:    "assistant",
+									Content: tMsg,
+								},
+							})
+							outRes := types.CompletionResponse{
+								ID:      p.Bing.Conversation.ConversationId,
+								Choices: choices,
+								Created: now,
+								Model:   ThisModel,
+								Object:  "chat.completion.chunk",
+								Bing:    p.Bing.Conversation}
+							resJson, _ := fhblade.Json.Marshal(outRes)
+							fmt.Fprintf(rw, "data: %s\n\n", resJson)
+							flusher.Flush()
+						}
 					}
-					resJson, _ := fhblade.Json.Marshal(ts)
-					fmt.Fprintf(rw, "data: %s\n\n", resJson)
-					flusher.Flush()
 				}
 			}
 		}

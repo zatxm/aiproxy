@@ -2,7 +2,6 @@ package gemini
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -29,8 +28,8 @@ const (
 
 var (
 	ApiUrl   = ""
-	startTag = []byte(`            "text": "`)
-	endTag   = []byte{34, 10}
+	startTag = `            "text": "`
+	endTag   = `"\n`
 )
 
 // 流式响应模型对话，省略部分不常用参数
@@ -241,28 +240,25 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 	rw.WriteHeader(200)
 	// 读取响应体
 	reader := bufio.NewReader(resp.Body)
-	var msgBuilder strings.Builder
 	id := uuid.NewString()
 	now := time.Now().Unix()
 	for {
-		line, err := reader.ReadBytes('\n')
+		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err != io.EOF {
 				fhblade.Log.Error("gemini v1 send msg res read err", zap.Error(err))
 			}
 			break
 		}
-		if bytes.HasPrefix(line, startTag) {
-			raw := bytes.TrimPrefix(line, startTag)
-			raw = bytes.TrimSuffix(raw, endTag)
-			msgBuilder.Write(raw)
-			tMsg := msgBuilder.String()
+		if strings.HasPrefix(line, startTag) {
+			raw := strings.TrimPrefix(line, startTag)
+			raw = strings.TrimSuffix(raw, endTag)
 			var choices []*types.Choice
 			choices = append(choices, &types.Choice{
 				Index: 0,
 				Message: &types.ResMessageOrDelta{
 					Role:    "assistant",
-					Content: tMsg,
+					Content: raw,
 				},
 			})
 			outRes := &types.CompletionResponse{

@@ -421,6 +421,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 		rw.WriteHeader(200)
 		// 读取响应体
 		reader := bufio.NewReader(resp.Body)
+		lastMsg := ""
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
@@ -450,29 +451,33 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 				}
 				parts := chatRes.Message.Content.Parts
 				if len(parts) > 0 && chatRes.Message.Author.Role == "assistant" && parts[0] != "" {
-					var choices []*types.Choice
-					choices = append(choices, &types.Choice{
-						Index: 0,
-						Message: &types.ResMessageOrDelta{
-							Role:    "assistant",
-							Content: parts[0],
-						},
-					})
-					outRes := &types.CompletionResponse{
-						ID:      chatRes.Message.ID,
-						Choices: choices,
-						Created: int64(chatRes.Message.CreateTime),
-						Model:   chatRes.Message.Metadata.ModelSlug,
-						Object:  "chat.completion.chunk",
-						OpenAiWeb: &types.OpenAiConversation{
-							ID:              chatRes.ConversationID,
-							ParentMessageId: chatRes.Message.Metadata.ParentId,
-							LastMessageId:   chatRes.Message.ID,
-						},
+					tMsg := strings.TrimPrefix(parts[0], lastMsg)
+					lastMsg = parts[0]
+					if tMsg != "" {
+						var choices []*types.Choice
+						choices = append(choices, &types.Choice{
+							Index: 0,
+							Message: &types.ResMessageOrDelta{
+								Role:    "assistant",
+								Content: tMsg,
+							},
+						})
+						outRes := &types.CompletionResponse{
+							ID:      chatRes.Message.ID,
+							Choices: choices,
+							Created: int64(chatRes.Message.CreateTime),
+							Model:   chatRes.Message.Metadata.ModelSlug,
+							Object:  "chat.completion.chunk",
+							OpenAiWeb: &types.OpenAiConversation{
+								ID:              chatRes.ConversationID,
+								ParentMessageId: chatRes.Message.Metadata.ParentId,
+								LastMessageId:   chatRes.Message.ID,
+							},
+						}
+						outJson, _ := fhblade.Json.Marshal(outRes)
+						fmt.Fprintf(rw, "data: %s\n\n", outJson)
+						flusher.Flush()
 					}
-					outJson, _ := fhblade.Json.Marshal(outRes)
-					fmt.Fprintf(rw, "data: %s\n\n", outJson)
-					flusher.Flush()
 				}
 			}
 		}
@@ -563,6 +568,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 	cancle := make(chan struct{})
 	// 处理返回数据
 	go func() {
+		lastMsg := ""
 		for {
 			_, msg, err := wc.ReadMessage()
 			if err != nil {
@@ -613,29 +619,33 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 				}
 				parts := chatRes.Message.Content.Parts
 				if len(parts) > 0 && chatRes.Message.Author.Role == "assistant" && parts[0] != "" {
-					var choices []*types.Choice
-					choices = append(choices, &types.Choice{
-						Index: 0,
-						Message: &types.ResMessageOrDelta{
-							Role:    "assistant",
-							Content: parts[0],
-						},
-					})
-					outRes := &types.CompletionResponse{
-						ID:      chatRes.Message.ID,
-						Choices: choices,
-						Created: int64(chatRes.Message.CreateTime),
-						Model:   chatRes.Message.Metadata.ModelSlug,
-						Object:  "chat.completion.chunk",
-						OpenAiWeb: &types.OpenAiConversation{
-							ID:              chatRes.ConversationID,
-							ParentMessageId: chatRes.Message.Metadata.ParentId,
-							LastMessageId:   chatRes.Message.ID,
-						},
+					tMsg := strings.TrimPrefix(parts[0], lastMsg)
+					lastMsg = parts[0]
+					if tMsg != "" {
+						var choices []*types.Choice
+						choices = append(choices, &types.Choice{
+							Index: 0,
+							Message: &types.ResMessageOrDelta{
+								Role:    "assistant",
+								Content: tMsg,
+							},
+						})
+						outRes := &types.CompletionResponse{
+							ID:      chatRes.Message.ID,
+							Choices: choices,
+							Created: int64(chatRes.Message.CreateTime),
+							Model:   chatRes.Message.Metadata.ModelSlug,
+							Object:  "chat.completion.chunk",
+							OpenAiWeb: &types.OpenAiConversation{
+								ID:              chatRes.ConversationID,
+								ParentMessageId: chatRes.Message.Metadata.ParentId,
+								LastMessageId:   chatRes.Message.ID,
+							},
+						}
+						outJson, _ := fhblade.Json.Marshal(outRes)
+						fmt.Fprintf(rw, "data: %s\n\n", outJson)
+						flusher.Flush()
 					}
-					outJson, _ := fhblade.Json.Marshal(outRes)
-					fmt.Fprintf(rw, "data: %s\n\n", outJson)
-					flusher.Flush()
 				}
 			}
 		}

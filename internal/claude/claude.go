@@ -88,11 +88,7 @@ func ProxyWeb() func(*fhblade.Context) error {
 		}
 		if !setSessionKey {
 			if auth != "" {
-				sessionKey := auth
-				if strings.HasPrefix(auth, "Bearer ") {
-					sessionKey = strings.TrimPrefix(auth, "Bearer ")
-				}
-				c.Request().Req().Header.Set("Cookie", "sessionKey="+sessionKey)
+				c.Request().Req().Header.Set("Cookie", "sessionKey="+strings.TrimPrefix(auth, "Bearer "))
 			}
 		}
 		gClient := client.CPool.Get().(tlsClient.HttpClient)

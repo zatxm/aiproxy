@@ -184,7 +184,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 
 	// chat
 	reqJson, _ := fhblade.Json.MarshalToString(goReq)
-	apiUrl := parseApiUrl()
+	apiUrl := parseApiUrl(c)
 	req, err := http.NewRequest(http.MethodPost, apiUrl, strings.NewReader(reqJson))
 	if err != nil {
 		fhblade.Log.Error("gemini v1 send msg new req err",
@@ -278,17 +278,31 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 	return nil
 }
 
-func parseApiUrl() string {
-	if ApiUrl == "" {
-		cfg := config.V()
+func parseApiUrl(c *fhblade.Context) string {
+	// 优先获取用户传递
+	auth := c.Request().Header("Authorization")
+	if auth != "" {
+		geminiCfg := config.V().Gemini
 		var apiUrlBuild strings.Builder
 		apiUrlBuild.WriteString("https://")
-		apiUrlBuild.WriteString(cfg.Gemini.ApiHost)
+		apiUrlBuild.WriteString(geminiCfg.ApiHost)
 		apiUrlBuild.WriteString("/")
-		apiUrlBuild.WriteString(cfg.Gemini.ApiVersion)
+		apiUrlBuild.WriteString(geminiCfg.ApiVersion)
 		apiUrlBuild.WriteString("/models/gemini-pro:streamGenerateContent")
 		apiUrlBuild.WriteString("?key=")
-		apiUrlBuild.WriteString(cfg.Gemini.ApiKey)
+		apiUrlBuild.WriteString(strings.TrimPrefix(auth, "Bearer "))
+		return apiUrlBuild.String()
+	}
+	if ApiUrl == "" {
+		geminiCfg := config.V().Gemini
+		var apiUrlBuild strings.Builder
+		apiUrlBuild.WriteString("https://")
+		apiUrlBuild.WriteString(geminiCfg.ApiHost)
+		apiUrlBuild.WriteString("/")
+		apiUrlBuild.WriteString(geminiCfg.ApiVersion)
+		apiUrlBuild.WriteString("/models/gemini-pro:streamGenerateContent")
+		apiUrlBuild.WriteString("?key=")
+		apiUrlBuild.WriteString(geminiCfg.ApiKey)
 		ApiUrl = apiUrlBuild.String()
 	}
 	return ApiUrl

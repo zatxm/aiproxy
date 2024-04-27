@@ -9,6 +9,7 @@ import (
 	"time"
 
 	http "github.com/bogdanfinn/fhttp"
+	"github.com/bogdanfinn/fhttp/httputil"
 	"github.com/google/uuid"
 	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/config"
@@ -56,6 +57,89 @@ type messageParams struct {
 	Timezone    string        `json:"timezone"`
 	attachments []interface{} `json:"attachments"`
 	files       []interface{} `json:"files"`
+}
+
+// 转发web请求
+func ProxyWeb() func(*fhblade.Context) error {
+	return func(c *fhblade.Context) error {
+		path := c.Get("path")
+		query := c.Request().RawQuery()
+
+		// 请求头
+		accept := c.Request().Header("Accept")
+		if accept == "" {
+			accept = vars.AcceptAll
+		}
+		headerCookies := c.Request().Header("Cookie")
+		auth := c.Request().Header("Authorization")
+		c.Request().Req().Header = defaultHeader
+		c.Request().Req().Header.Set("accept", accept)
+		// 设置sessionKey,优先cookie里面的
+		setSessionKey := false
+		if headerCookies != "" {
+			cookies := strings.Split(headerCookies, "; ")
+			for k := range cookies {
+				if strings.HasPrefix(cookies[k], "sessionKey=") {
+					c.Request().Req().Header.Set("Cookie", cookies[k])
+					setSessionKey = true
+					break
+				}
+			}
+		}
+		if !setSessionKey {
+			if auth != "" {
+				sessionKey := auth
+				if strings.HasPrefix(auth, "Bearer ") {
+					sessionKey = strings.TrimPrefix(auth, "Bearer ")
+				}
+				c.Request().Req().Header.Set("Cookie", "sessionKey="+sessionKey)
+			}
+		}
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		defer client.CPool.Put(gClient)
+		goProxy := httputil.ReverseProxy{
+			Director: func(req *http.Request) {
+				req.Host = "claude.ai"
+				req.URL.Host = "claude.ai"
+				req.URL.Scheme = "https"
+				req.URL.Path = path
+				req.URL.RawQuery = query
+			},
+			Transport: gClient.TClient().Transport,
+		}
+		goProxy.ServeHTTP(c.Response().Rw(), c.Request().Req())
+		return nil
+	}
+}
+
+// 转发api请求
+func ProxyApi() func(*fhblade.Context) error {
+	return func(c *fhblade.Context) error {
+		path := c.Get("path")
+		query := c.Request().RawQuery()
+
+		// 请求头
+		version := config.V().Claude.ApiVersion
+		c.Request().Req().Header = http.Header{
+			"x-api-key":         {c.Request().Header("x-api-key")},
+			"anthropic-version": {version},
+			"content-type":      {vars.ContentTypeJSON},
+		}
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		defer client.CPool.Put(gClient)
+		goProxy := httputil.ReverseProxy{
+			Director: func(req *http.Request) {
+				req.Host = "api.anthropic.com"
+				req.URL.Host = "api.anthropic.com"
+				req.URL.Scheme = "https"
+				req.URL.Path = path
+				req.URL.RawQuery = query
+			},
+			Transport: gClient.TClient().Transport,
+		}
+		goProxy.ServeHTTP(c.Response().Rw(), c.Request().Req())
+		return nil
+	}
 }
 
 func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
@@ -273,6 +357,11 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 	}
 	fmt.Fprint(rw, "data: [DONE]\n\n")
 	flusher.Flush()
+	return nil
+}
+
+// 通过api请求返回openai格式
+func apiToApi(c *fhblade.Context, p types.CompletionRequest) error {
 	return nil
 }
 

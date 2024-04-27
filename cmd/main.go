@@ -7,6 +7,7 @@ import (
 
 	http "github.com/bogdanfinn/fhttp"
 	"github.com/zatxm/any-proxy/internal/bing"
+	"github.com/zatxm/any-proxy/internal/claude"
 	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/coze/discord"
 	"github.com/zatxm/any-proxy/internal/gemini"
@@ -60,6 +61,11 @@ func main() {
 	app.Post("/bing/conversation", bing.DoCreateConversation())
 	app.Delete("/bing/conversation", bing.DoDeleteConversation())
 	app.Post("/bing/message", bing.DoSendMessage())
+
+	// claude
+	// 转发web操作，关键要有sessionKey
+	app.Any("/claude/web/*path", claude.ProxyWeb())
+	app.Any("/claude/api/*path", claude.ProxyApi())
 
 	// google gemini
 	app.Any("/gemini/*path", gemini.Do())

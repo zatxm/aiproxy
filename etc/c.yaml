@@ -86,6 +86,8 @@ coze:
 
 # claude配置
 claude:
+    # 接口版本
+    api_version: 2023-06-01
     # web chat cookie里面的sessionKey值
     web_sessions:
         -

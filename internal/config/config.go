@@ -72,6 +72,7 @@ type cozeApiBot struct {
 }
 
 type claude struct {
+	ApiVersion  string        `yaml:"api_version"`
 	WebSessions []*websession `yaml:"web_sessions"`
 }
 

@@ -299,7 +299,6 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 	header.Set("Access-Control-Allow-Origin", "*")
 	rw.WriteHeader(200)
 	reader := bufio.NewReader(resp.Body)
-	var msgBuilder strings.Builder
 	now := time.Now().Unix()
 	for {
 		line, err := reader.ReadString('\n')
@@ -326,14 +325,12 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 				break
 			}
 			if chatRes.Completion != "" {
-				msgBuilder.WriteString(chatRes.Completion)
-				tMsg := msgBuilder.String()
 				var choices []*types.Choice
 				choices = append(choices, &types.Choice{
 					Index: 0,
 					Message: &types.ResMessageOrDelta{
 						Role:    "assistant",
-						Content: tMsg,
+						Content: chatRes.Completion,
 					},
 				})
 				outRes := &types.CompletionResponse{

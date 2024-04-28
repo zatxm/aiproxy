@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -17,6 +18,7 @@ import (
 	"github.com/zatxm/any-proxy/internal/types"
 	"github.com/zatxm/any-proxy/internal/vars"
 	"github.com/zatxm/fhblade"
+	"github.com/zatxm/fhblade/tools"
 	tlsClient "github.com/zatxm/tls-client"
 	"go.uber.org/zap"
 )
@@ -28,8 +30,8 @@ const (
 
 var (
 	ApiUrl   = ""
-	startTag = `            "text": "`
-	endTag   = `"\n`
+	startTag = []byte(`            "text": "`)
+	endTag   = []byte{34, 10}
 )
 
 // 流式响应模型对话，省略部分不常用参数
@@ -243,22 +245,22 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 	id := uuid.NewString()
 	now := time.Now().Unix()
 	for {
-		line, err := reader.ReadString('\n')
+		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
 				fhblade.Log.Error("gemini v1 send msg res read err", zap.Error(err))
 			}
 			break
 		}
-		if strings.HasPrefix(line, startTag) {
-			raw := strings.TrimPrefix(line, startTag)
-			raw = strings.TrimSuffix(raw, endTag)
+		if bytes.HasPrefix(line, startTag) {
+			raw := bytes.TrimPrefix(line, startTag)
+			raw = bytes.TrimSuffix(raw, endTag)
 			var choices []*types.Choice
 			choices = append(choices, &types.Choice{
 				Index: 0,
 				Message: &types.ResMessageOrDelta{
 					Role:    "assistant",
-					Content: raw,
+					Content: tools.BytesToString(raw),
 				},
 			})
 			outRes := &types.CompletionResponse{

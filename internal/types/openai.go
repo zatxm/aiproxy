@@ -31,7 +31,7 @@ type CompletionRequest struct {
 	Provider         string                   `json:"provider,omitempty"`
 	OpenAi           *OpenAiCompletionRequest `json:"openai,omitempty"`
 	Bing             *BingCompletionRequest   `json:"bing,omitempty"`
-	Coze             *CozeCompletionRequest   `json:"cozeApi,omitempty"`
+	Coze             *CozeCompletionRequest   `json:"coze,omitempty"`
 	Claude           *ClaudeCompletionRequest `json:"claude,omitempty"`
 }
 

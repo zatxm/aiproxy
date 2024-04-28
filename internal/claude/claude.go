@@ -151,7 +151,11 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 	}
 
 	// 获取sessionKey
-	sessionKey, organizationID, index := p.ParseClaudeWebSessionKey(c)
+	var reqIndex int = -3
+	if p.Claude != nil {
+		reqIndex = p.Claude.Index
+	}
+	sessionKey, organizationID, index := p.ParseClaudeWebSessionKey(c, reqIndex)
 	if sessionKey == "" {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{

@@ -1,7 +1,7 @@
 package types
 
 type ClaudeCompletionRequest struct {
-	Conversation *ClaudeConversation `json:"conversation,omitempty"`
+	ClaudeCompletionResponse
 }
 
 type ClaudeCompletionResponse struct {

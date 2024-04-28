@@ -293,7 +293,7 @@ func (c *CompletionRequest) ParseCozeApiBotIdAndUser(r *fhblade.Context) (string
 }
 
 // 随机获取设置的coze bot id
-func (c *CompletionRequest) ParseClaudeWebSessionKey(r *fhblade.Context) (string, string, int) {
+func (c *CompletionRequest) ParseClaudeWebSessionKey(r *fhblade.Context, i int) (string, string, int) {
 	auth := r.Request().Header("Authorization")
 	if auth != "" {
 		if strings.HasPrefix(auth, "Bearer ") {
@@ -307,12 +307,18 @@ func (c *CompletionRequest) ParseClaudeWebSessionKey(r *fhblade.Context) (string
 	if l == 0 {
 		return "", "", -2
 	}
+	if i > l {
+		return "", "", -8
+	}
 	if l == 1 {
 		return claudeSessionCfgs[0].Val, claudeSessionCfgs[0].OrganizationId, 0
 	}
 
-	rand.Seed(time.Now().UnixNano())
-	index := rand.Intn(l)
+	index := i
+	if index < 0 {
+		rand.Seed(time.Now().UnixNano())
+		index = rand.Intn(l)
+	}
 	claudeSessionCfg := claudeSessionCfgs[index]
 	return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, index
 }

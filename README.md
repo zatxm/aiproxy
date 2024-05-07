@@ -33,9 +33,9 @@ docker pull zatxm120/myproxy
 * 启用
 
 ```
-docker run -d --name myproxy --restart always zatxm120/myproxy
+docker run -d --name myproxy --restart --net=host always zatxm120/myproxy #自身网络，默认配置端口8999
 docker run -d --name myproxy --restart always -p 8084:8999 zatxm120/myproxy #映射端口，默认8999,实际还是要看配置文件的端口号
-docker run -d --name myproxy --restart always -p 8084:8999 -v /anp/data:/your-app-data zatxm120/myproxy #映射文件夹，包含配置文件等
+docker run -d --name myproxy --restart always -p 8084:8999 -v /your-app-data:/anp/data zatxm120/myproxy #映射文件夹，包含配置文件等
 ```
 
 ## 配置说明
@@ -56,7 +56,7 @@ mkdir -p /opt/anyproxy/etc #配置文件目录，配置文件复制到该目录
 **3. docker映射目录**
 
 ```
-docker run -d --name myproxy --restart always -p 8084:8999 -v /anp/data:/opt/anyproxy zatxm120/myproxy
+docker run -d --name myproxy --restart always -p 8084:8999 -v /opt/anyproxy:/anp/data zatxm120/myproxy
 ```
 
 ## 接口应用说明

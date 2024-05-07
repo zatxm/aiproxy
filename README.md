@@ -1,7 +1,7 @@
-AI集成转发、代理
+AI Chat集成转发、代理
 ==========
 
-golang版ai工具集成，目前支持openai、bing、claude、gemini和coze，后续陆续增加
+golang版ai chat工具集成，目前支持openai、bing、claude、gemini和coze，后续陆续增加
 
 # 使用
 

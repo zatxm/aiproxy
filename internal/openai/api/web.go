@@ -468,7 +468,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 							Created: int64(chatRes.Message.CreateTime),
 							Model:   chatRes.Message.Metadata.ModelSlug,
 							Object:  "chat.completion.chunk",
-							OpenAiWeb: &types.OpenAiConversation{
+							OpenAi: &types.OpenAiConversation{
 								ID:              chatRes.ConversationID,
 								ParentMessageId: chatRes.Message.Metadata.ParentId,
 								LastMessageId:   chatRes.Message.ID,
@@ -636,7 +636,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 							Created: int64(chatRes.Message.CreateTime),
 							Model:   chatRes.Message.Metadata.ModelSlug,
 							Object:  "chat.completion.chunk",
-							OpenAiWeb: &types.OpenAiConversation{
+							OpenAi: &types.OpenAiConversation{
 								ID:              chatRes.ConversationID,
 								ParentMessageId: chatRes.Message.Metadata.ParentId,
 								LastMessageId:   chatRes.Message.ID,

@@ -60,7 +60,7 @@ type CompletionResponse struct {
 	SystemFingerprint string                    `json:"system_fingerprint"`
 	Object            string                    `json:"object"`
 	Usage             *Usage                    `json:"usage,omitempty"`
-	OpenAiWeb         *OpenAiConversation       `json:"openai_web,omitempty"`
+	OpenAi            *OpenAiConversation       `json:"openai,omitempty"`
 	Bing              *BingConversation         `json:"bing,omitempty"`
 	Coze              *CozeConversation         `json:"coze,omitempty"`
 	Claude            *ClaudeCompletionResponse `json:"claude,omitempty"`

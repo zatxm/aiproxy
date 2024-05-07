@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Get version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
     - uses: actions/checkout@v4
     - name: Build the Docker image
       run: docker build -t zatxm120/myproxy .
@@ -22,5 +25,6 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Push Docker image to Docker Hub
       run: |
-        docker push zatxm120/myproxy:${{ github.ref }}
         docker push zatxm120/myproxy:latest
+        docker tag zatxm120/myproxy:latest zatxm120/myproxy:${{ steps.get_version.outputs.VERSION }}
+        docker push zatxm120/myproxy:${{ steps.get_version.outputs.VERSION }}

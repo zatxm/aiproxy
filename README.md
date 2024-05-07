@@ -58,3 +58,29 @@ mkdir -p /opt/anyproxy/etc #配置文件目录，配置文件复制到该目录
 ```
 docker run -d --name myproxy --restart always -p 8084:8999 -v /anp/data:/opt/anyproxy zatxm120/myproxy
 ```
+
+## 接口应用说明
+
+**1. 通用接口/c/v1/chat/completions**
+
+```
+curl -X POST http://192.168.0.1:8999/c/v1/chat/completions -d '{
+    "messages": [
+        {
+            "role": "user",
+            "content": "你是谁？"
+        }
+    ],
+    "model": "text-davinci-002-render-sha",
+    "provider": "openai-chat-web"
+}'
+```
+
+provider参数说明如下：
+
+* openai-chat-web：openai web chat,支持免登录(有IP要求，一般美国IP就行)
+* gemini：谷歌gemini pro
+* bing：微软bing chat,有IP要求，不符合会出验证码
+* coze：支持discord和api,走api时model传coze-api
+* claude：目前支持claude web chat,后续加入api to api
+* 不传或不支持的provider默认走oenpai的v1/chat/completions接口

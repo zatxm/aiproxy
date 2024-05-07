@@ -99,7 +99,7 @@ var (
 	WsDelimiterByte          byte = 30
 	OriginUrl                     = "https://www.bing.com"
 	ListConversationApiUrl        = "https://www.bing.com/turing/conversation/chats"
-	CreateConversationApiUrl      = "https://www.bing.com/turing/conversation/create?bundleVersion=1.1607.0"
+	CreateConversationApiUrl      = "https://www.bing.com/turing/conversation/create?bundleVersion=1.1694.0"
 	DeleteConversationApiUrl      = "https://sydney.bing.com/sydney/DeleteSingleConversation"
 	ImageUploadRefererUrl         = "https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx"
 	ImageUrl                      = "https://www.bing.com/images/blob?bcid="
@@ -109,82 +109,9 @@ var (
 	WssPath                       = "/sydney/ChatHub"
 )
 
-// 发送信息请求结构
-type sendMessageRequest struct {
-	Arguments    []*argument `json:"arguments"`
-	InvocationId string      `json:"invocationId"`
-	Target       string      `json:"target"`
-	Type         int         `json:"type"`
-}
-
-type argument struct {
-	Source                         string       `json:"source"`
-	OptionsSets                    []string     `json:"optionsSets"`
-	AllowedMessageTypes            []string     `json:"allowedMessageTypes"`
-	SliceIds                       []string     `json:"sliceIds"`
-	TraceId                        string       `json:"traceId"`
-	ConversationHistoryOptionsSets []string     `json:"conversationHistoryOptionsSets"`
-	IsStartOfSession               bool         `json:"isStartOfSession"`
-	RequestId                      string       `json:"requestId"`
-	Message                        *message     `json:"message"`
-	Scenario                       string       `json:"scenario"`
-	Tone                           string       `json:"tone"`
-	SpokenTextMode                 string       `json:"spokenTextMode"`
-	ConversationId                 string       `json:"conversationId"`
-	Participant                    *participant `json:"participant"`
-}
-
-type message struct {
-	Locale           string          `json:"locale"`
-	Market           string          `json:"market"`
-	Region           string          `json:"region"`
-	LocationHints    []*locationHint `json:"locationHints"`
-	ImageUrl         string          `json:"imageUrl,omitempty"`
-	OriginalImageUrl string          `json:"originalImageUrl,omitempty"`
-	Author           string          `json:"author"`
-	InputMethod      string          `json:"inputMethod"`
-	Text             string          `json:"text"`
-	MessageType      string          `json:"messageType"`
-	RequestId        string          `json:"requestId"`
-	MessageId        string          `json:"messageId"`
-}
-
-type locationHint struct {
-	Country           string  `json:"country"`
-	State             string  `json:"state"`
-	City              string  `json:"city"`
-	Timezoneoffset    int     `json:"timezoneoffset"`
-	CountryConfidence int     `json:"countryConfidence"`
-	Center            *center `json:"Center"`
-	RegionType        int     `json:"RegionType"`
-	SourceType        int     `json:"SourceType"`
-}
-
-type center struct {
-	Latitude  float64 `json:"Latitude"`
-	Longitude float64 `json:"Longitude"`
-}
-
-type participant struct {
-	Id string `json:"id" binding:"required`
-}
-
-type imgBlob struct {
-	BlobId          string `json:"blobId"`
-	ProcessedBlobId string `json:"processedBlobId"`
-}
-
-type deleteConversationParams struct {
-	ConversationId        string       `json:"conversationId" binding:"required"`
-	ConversationSignature string       `json:"conversationSignature" binding:"required"`
-	Participant           *participant `json:"participant" binding:"required`
-	Source                string       `json:"source,omitempty"`
-	OptionsSets           []string     `json:"optionsSets,omitempty"`
-}
-
 func DoDeleteConversation() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		var p deleteConversationParams
+		var p types.BingConversationDeleteParams
 		if err := c.ShouldBindJSON(&p); err != nil {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
 		}
@@ -345,7 +272,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		}
 		defer resp.Body.Close()
 		cPool.Put(gClient)
-		imgRes := &imgBlob{}
+		imgRes := &types.BingImgBlob{}
 		if err := fhblade.Json.NewDecoder(resp.Body).Decode(imgRes); err != nil {
 			fhblade.Log.Error("bing DoSendMessage() img upload res json err",
 				zap.Error(err),
@@ -453,7 +380,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 						close(cancle)
 						return
 					}
-					resArr := map[string]interface{}{}
+					resArr := &types.BingCompletionResponse{}
 					err := fhblade.Json.Unmarshal(msgArr[k], &resArr)
 					if err != nil {
 						fhblade.Log.Error("bing DoSendMessage() wc deal data err",
@@ -462,43 +389,41 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 					}
 					resMsg := ""
 					now := time.Now().Unix()
-					if dType, ok := resArr["type"].(float64); ok {
-						switch dType {
-						case 1:
-							if arguments, ok := resArr["arguments"].([]interface{}); ok {
-								argument := arguments[0].(map[string]interface{})
-								if messages, ok := argument["messages"].([]interface{}); ok {
-									msgArr := messages[0].(map[string]interface{})
-									if msgTime, ok := msgArr["createdAt"].(string); ok {
-										parsedTime, err := time.Parse(time.RFC3339, msgTime)
-										if err == nil {
-											now = parsedTime.Unix()
+					switch resArr.CType {
+					case 1:
+						if resArr.Arguments != nil && len(resArr.Arguments) > 0 {
+							argument := resArr.Arguments[0]
+							if len(argument.Messages) > 0 {
+								msgArr := argument.Messages[0]
+								if msgArr.CreatedAt != "" {
+									parsedTime, err := time.Parse(time.RFC3339, msgArr.CreatedAt)
+									if err == nil {
+										now = parsedTime.Unix()
+									}
+								}
+								if msgArr.AdaptiveCards != nil && len(msgArr.AdaptiveCards) > 0 {
+									card := msgArr.AdaptiveCards[0].Body[0]
+									if card.Text != "" {
+										resMsg += card.Text
+									}
+									if card.Inlines != nil && len(card.Inlines) > 0 {
+										cardLnline := card.Inlines[0]
+										if cardLnline.Text != "" {
+											resMsg += cardLnline.Text + "\n"
 										}
 									}
-									if adaptiveCards, ok := msgArr["adaptiveCards"].([]interface{}); ok {
-										card := adaptiveCards[0].(map[string]interface{})["body"].([]interface{})[0].(map[string]interface{})
-										if text, ok := card["text"].(string); ok {
-											resMsg += text
-										}
-										if cardLnlines, ok := card["inlines"].([]interface{}); ok {
-											cardLnline := cardLnlines[0].(map[string]interface{})
-											if text, ok := cardLnline["text"].(string); ok {
-												resMsg += text + "\n"
-											}
-										}
-									} else if cType, ok := msgArr["contentType"].(string); ok && cType == "IMAGE" {
-										if mText, ok := msgArr["text"].(string); ok {
-											resMsg += "\nhttps://www.bing.com/images/create?q=" + url.QueryEscape(mText)
-										}
+								} else if msgArr.ContentType == "IMAGE" {
+									if msgArr.Text != "" {
+										resMsg += "\nhttps://www.bing.com/images/create?q=" + url.QueryEscape(msgArr.Text)
 									}
 								}
 							}
-						case 2:
-							fmt.Fprint(rw, "data: [DONE]\n\n")
-							flusher.Flush()
-							close(cancle)
-							return
 						}
+					case 2:
+						fmt.Fprint(rw, "data: [DONE]\n\n")
+						flusher.Flush()
+						close(cancle)
+						return
 					}
 					if resMsg != "" {
 						tMsg := strings.TrimPrefix(resMsg, lastMsg)
@@ -634,23 +559,21 @@ func generateBoundary() string {
 
 func generateMessage(c *types.BingConversation, prompt string, isStartOfSession bool) []byte {
 	id := uuid.NewString()
-	ct := &center{
+	ct := &types.BingCenter{
 		Latitude:  34.0536909,
 		Longitude: -118.242766}
-	lth := &locationHint{
-		Country:           "United States",
-		State:             "California",
-		City:              "Los Angeles",
-		Timezoneoffset:    8,
-		CountryConfidence: 8,
-		Center:            ct,
+	lth := &types.BingLocationHint{
+		SourceType:        1,
 		RegionType:        2,
-		SourceType:        1}
-	msg := &message{
+		Center:            ct,
+		CountryName:       "United States",
+		CountryConfidence: 8,
+		UtcOffset:         8}
+	msg := &types.BingMessage{
 		Locale:        "en-US",
 		Market:        "en-US",
 		Region:        "US",
-		LocationHints: []*locationHint{lth},
+		LocationHints: []*types.BingLocationHint{lth},
 		Author:        "user",
 		InputMethod:   "Keyboard",
 		Text:          prompt,
@@ -661,8 +584,8 @@ func generateMessage(c *types.BingConversation, prompt string, isStartOfSession 
 		msg.ImageUrl = c.ImageUrl
 		msg.OriginalImageUrl = c.ImageUrl
 	}
-	pc := &participant{Id: c.ClientId}
-	arg := &argument{
+	pc := &types.BingParticipant{Id: c.ClientId}
+	arg := &types.BingRequestArgument{
 		Source:                         "cib",
 		OptionsSets:                    OptionDefaultSets,
 		AllowedMessageTypes:            AllowedMessageTypes,
@@ -677,8 +600,8 @@ func generateMessage(c *types.BingConversation, prompt string, isStartOfSession 
 		SpokenTextMode:                 "None",
 		ConversationId:                 c.ConversationId,
 		Participant:                    pc}
-	smr := &sendMessageRequest{
-		Arguments:    []*argument{arg},
+	smr := &types.BingSendMessageRequest{
+		Arguments:    []*types.BingRequestArgument{arg},
 		InvocationId: uuid.NewString(),
 		Target:       "chat",
 		Type:         4}

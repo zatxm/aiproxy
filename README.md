@@ -78,7 +78,7 @@ curl -X POST http://192.168.0.1:8999/c/v1/chat/completions -d '{
 
 provider参数说明如下：
 
-* openai-chat-web：openai web chat,支持免登录(有IP要求，一般美国IP就行)
+* **openai-chat-web**：openai web chat,支持免登录(有IP要求，一般美国IP就行)
 
 后续如需在同一会话基础上进行对话需传递参数openai，通信后会返回conversation信息
 
@@ -92,8 +92,8 @@ provider参数说明如下：
 }
 ```
 
-* gemini：谷歌gemini pro
-* bing：微软bing chat,有IP要求，不符合会出验证码
-* coze：支持discord和api,走api时model传coze-api
-* claude：目前支持claude web chat,后续加入api to api
-* 不传或不支持的provider默认走openai的v1/chat/completions接口
+* **gemini**：谷歌gemini pro
+* **bing**：微软bing chat,有IP要求，不符合会出验证码
+* **coze**：支持discord和api,走api时model传coze-api
+* **claude**：目前支持claude web chat,后续加入api to api
+* **不传或不支持**的provider默认走openai的v1/chat/completions接口

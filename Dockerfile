@@ -2,11 +2,6 @@ FROM golang:bookworm
 WORKDIR /go/src/anp
 ADD . /go/src/anp
 ENV CGO_ENABLED=0
-RUN cd /go/src/anp \
-    && rm -rf go.* \
-    && go mod init \
-    && sed -i 's#any-proxy#github.com/zatxm/any-proxy#g' go.mod \
-    && go mod tidy
 RUN go build -ldflags "-s -w" -o main cmd/main.go
 RUN cd /go/src/anp \
     && apt update \

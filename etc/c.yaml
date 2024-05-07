@@ -1,3 +1,4 @@
+# 如果用于docker,目录固定为/anp/data
 # 绑定的端口
 port : :8999
 
@@ -6,15 +7,15 @@ https_info :
     # 是否开启https
     enable: false
     # 证书pem或crt文件目录
-    pem_file: /opt/web/ssl/my.pem
+    pem_file: /anp/data/ssl/my.pem
     # 证书key文件目录
-    key_file: /opt/web/ssl/my.key
+    key_file: /anp/data/ssl/my.key
 
 # har文件目录,强烈建议加上,为了获取arkose token
-hars_path : /home/any-proxy/hars
+hars_path : /anp/data/hars
 
 # 代理url,国外服务器部署就不用了
-proxy_url: http://127.0.0.1:1081
+# proxy_url: http://127.0.0.1:1081
 
 # 谷歌gemini接口
 # https://makersuite.google.com/app/apikey申请
@@ -30,7 +31,7 @@ arkose:
     # 客户端url
     client_arkoselabs_url: https://client-api.arkoselabs.com/v2/2.3.1/enforcement.db38df7eed55a4641d0eec2d11e1ff6a.html
     # 验证码保存目录，结尾以/结束
-    pic_save_path: /home/zatxm/web/go/work/src/any-proxy/pics/
+    pic_save_path: /anp/data/pics/
     # 解决验证码通信url,可自主搭建处理接码平台
     # 优先用har获取,没有sup=1就需要解决验证码
     solve_api_url: http://127.0.0.1:9118/do
@@ -62,7 +63,7 @@ coze:
         auth:
             - ODk4NDxxxx2I3WLrAcIkg
         # 代理
-        proxy_url: http://127.0.0.1:1081
+        # proxy_url: http://127.0.0.1:1081
         # 对话接口非流响应下的请求超时时间
         request_out_time: 300
         # 对话接口流响应下的每次流返回超时时间

@@ -73,12 +73,6 @@ func main() {
 	// web login token
 	app.Post("/auth/token/web", auth.DoWeb())
 
-	// platform login token
-	app.Post("/auth/token/platform", auth.DoPlatformToken())
-
-	// platform login token and session
-	app.Post("/auth/tks/platform", auth.DoPlatformTks())
-
 	// refresh platform token
 	app.Post("/auth/token/platform/refresh", auth.DoPlatformRefresh())
 

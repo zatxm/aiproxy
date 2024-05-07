@@ -33,9 +33,9 @@ docker pull zatxm120/myproxy
 * 启用
 
 ```
-docker run -d --name myproxy --restart always zatxm120/myproxy
+docker run -d --name myproxy --restart --net=host always zatxm120/myproxy #自身网络，默认配置端口8999
 docker run -d --name myproxy --restart always -p 8084:8999 zatxm120/myproxy #映射端口，默认8999,实际还是要看配置文件的端口号
-docker run -d --name myproxy --restart always -p 8084:8999 -v /anp/data:/your-app-data zatxm120/myproxy #映射文件夹，包含配置文件等
+docker run -d --name myproxy --restart always -p 8084:8999 -v /your-app-data:/anp/data zatxm120/myproxy #映射文件夹，包含配置文件等
 ```
 
 ## 配置说明
@@ -56,7 +56,7 @@ mkdir -p /opt/anyproxy/etc #配置文件目录，配置文件复制到该目录
 **3. docker映射目录**
 
 ```
-docker run -d --name myproxy --restart always -p 8084:8999 -v /anp/data:/opt/anyproxy zatxm120/myproxy
+docker run -d --name myproxy --restart always -p 8084:8999 -v /opt/anyproxy:/anp/data zatxm120/myproxy
 ```
 
 ## 接口应用说明
@@ -78,9 +78,22 @@ curl -X POST http://192.168.0.1:8999/c/v1/chat/completions -d '{
 
 provider参数说明如下：
 
-* openai-chat-web：openai web chat,支持免登录(有IP要求，一般美国IP就行)
-* gemini：谷歌gemini pro
-* bing：微软bing chat,有IP要求，不符合会出验证码
-* coze：支持discord和api,走api时model传coze-api
-* claude：目前支持claude web chat,后续加入api to api
-* 不传或不支持的provider默认走oenpai的v1/chat/completions接口
+* **openai-chat-web**：openai web chat,支持免登录(有IP要求，一般美国IP就行)
+
+后续如需在同一会话基础上进行对话需传递参数openai，通信后会返回conversation信息
+
+```
+"openai": {
+    "conversation": {
+        "conversation_id":"697b28e8-e228-4abb-b356-c8ccdccf82f3",
+        "parent_message_id":"dd6d9561-bebe-42da-91c6-f8fde6b105d9",
+        "last_message_id":"9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
+    }
+}
+```
+
+* **gemini**：谷歌gemini pro
+* **bing**：微软bing chat,有IP要求，不符合会出验证码
+* **coze**：支持discord和api,走api时model传coze-api
+* **claude**：目前支持claude web chat,后续加入api to api
+* **不传或不支持**的provider默认走openai的v1/chat/completions接口

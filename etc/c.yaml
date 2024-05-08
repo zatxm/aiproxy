@@ -39,7 +39,7 @@ arkose:
 # bing设置
 bing:
     # 部署国外vps不需要配置此代理,最好是干净IP否则会出验证码
-    proxy_url: http://127.0.0.1:1081
+    # proxy_url: http://127.0.0.1:1081
 
 # 相关配置
 coze:

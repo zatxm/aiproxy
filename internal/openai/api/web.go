@@ -47,6 +47,9 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 		if yPath == "conversation" && c.Request().Method() == "POST" {
 			return DoAsk(c, tag)
 		}
+		if yPath == "web2api" && c.Request().Method() == "POST" {
+			return DoWebToApi(c, tag)
+		}
 		path := "/" + tag + "/" + yPath
 		query := c.Request().RawQuery()
 		// 防止乱七八糟的header被拒，特别是开启https的cf域名从大陆访问
@@ -97,6 +100,26 @@ func DoAsk(c *fhblade.Context, tag string) error {
 		return c.JSONAndStatus(code, err)
 	}
 	return handleOriginStreamData(c, resp)
+}
+
+func DoWebToApi(c *fhblade.Context, tag string) error {
+	// 参数
+	var p types.OpenAiCompletionChatRequest
+	if err := c.ShouldBindJSON(&p); err != nil {
+		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "params error",
+				CType:   "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+	auth := c.Request().Header("Authorization")
+	resp, code, err := askConversationWebHttp(p, tag, auth)
+	if err != nil {
+		return c.JSONAndStatus(code, err)
+	}
+	return handleV1StreamData(c, resp)
 }
 
 func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string) (*http.Response, int, *types.ErrorResponse) {

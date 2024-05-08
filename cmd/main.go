@@ -90,6 +90,9 @@ func main() {
 
 	// 免登录chat会话
 	app.Post("/backend-anon/conversation", oapi.DoAnon())
+	app.Post("/backend-anon/web2api", func(c *fhblade.Context) error {
+		return oapi.DoWebToApi(c, "backend-anon")
+	})
 
 	// middleware - check authorization
 	app.Use(func(next fhblade.Handler) fhblade.Handler {

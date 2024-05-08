@@ -97,3 +97,30 @@ provider参数说明如下：
 * **coze**：支持discord和api,走api时model传coze-api
 * **claude**：目前支持claude web chat,后续加入api to api
 * **不传或不支持**的provider默认走openai的v1/chat/completions接口
+
+**2. openai web转api**
+
+* post /backend-anon/web2api
+* post /backend-api/web2api
+
+```
+通信请求数据如下：
+{
+    "action":"next",
+    "messages":[{
+        "id":"aaa2e4da-d561-458e-b731-e3390c08d8f7",
+        "author":{"role":"user"},
+        "content":{
+            "content_type":"text",
+            "parts":["你是谁？"]
+        },
+        "metadata":{}
+    }],
+    "parent_message_id":"aaa18093-c3ec-4528-bb92-750c0f85918f",
+    "model":"text-davinci-002-render-sha",
+    "timezone_offset_min":-480,
+    "history_and_training_disabled":false,
+    "conversation_mode":{"kind":"primary_assistant"},
+    "websocket_request_id":"bf740f5f-2335-4903-94df-4003819fdade"
+}
+```

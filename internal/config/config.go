@@ -50,8 +50,9 @@ type bing struct {
 }
 
 type coze struct {
-	Discord *cozeDiscord `yaml:"discord"`
-	ApiChat *cozeApiChat `yaml:"api_chat"`
+	ProxyUrl string       `yaml:"proxy_url"`
+	Discord  *cozeDiscord `yaml:"discord"`
+	ApiChat  *cozeApiChat `yaml:"api_chat"`
 }
 
 type cozeDiscord struct {
@@ -60,7 +61,6 @@ type cozeDiscord struct {
 	ChannelId            string   `yaml:"channel_id"`
 	ChatBotToken         string   `yaml:"chat_bot_token"`
 	CozeBot              []string `yaml:"coze_bot"`
-	ProxyUrl             string   `yaml:"proxy_url"`
 	RequestOutTime       int64    `yaml:"request_out_time"`
 	RequestStreamOutTime int64    `yaml:"request_stream_out_time"`
 	Auth                 []string `yaml:"auth"`
@@ -124,4 +124,8 @@ func BingProxyUrl() string {
 
 func ClaudeProxyUrl() string {
 	return cfg.Claude.ProxyUrl
+}
+
+func CozeProxyUrl() string {
+	return cfg.Coze.ProxyUrl
 }

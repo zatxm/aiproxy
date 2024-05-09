@@ -94,81 +94,56 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 	discord.ReplyStopChans[sentMsg.ID] = stopChan
 	defer delete(discord.ReplyStopChans, sentMsg.ID)
 
-	if p.Stream {
-		duration := cozeCfg.RequestStreamOutTime
-		if duration == 0 {
-			duration = defaultTimeout
-		}
-		durationTime := time.Duration(duration) * time.Second
-		timer := time.NewTimer(durationTime)
-		rw := c.Response().Rw()
-		flusher, ok := rw.(http.Flusher)
-		if !ok {
-			return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
-				Error: &types.CError{
-					Message: "Flushing not supported",
-					Type:    "invalid_systems_error",
-					Code:    "systems_error",
-				},
-			})
-		}
-		header := rw.Header()
-		header.Set("Content-Type", vars.ContentTypeStream)
-		header.Set("Cache-Control", "no-cache")
-		header.Set("Connection", "keep-alive")
-		header.Set("Access-Control-Allow-Origin", "*")
-		rw.WriteHeader(200)
-		clientGone := rw.(http.CloseNotifier).CloseNotify()
-		lastMsg := ""
-		for {
-			select {
-			case <-clientGone:
-				return nil
-			default:
-				select {
-				case reply := <-replyChan:
-					timer.Reset(durationTime)
-					tMsg := strings.TrimPrefix(reply.Choices[0].Message.Content, lastMsg)
-					lastMsg = reply.Choices[0].Message.Content
-					if tMsg != "" {
-						reply.Choices[0].Message.Content = tMsg
-						reply.Object = "chat.completion.chunk"
-						bs, _ := fhblade.Json.MarshalToString(reply)
-						fmt.Fprintf(rw, "data: %s\n\n", bs)
-						flusher.Flush()
-					}
-				case <-timer.C:
-					fmt.Fprint(rw, "data: [DONE]\n\n")
-					flusher.Flush()
-					return nil
-				case <-stopChan:
-					fmt.Fprint(rw, "data: [DONE]\n\n")
-					flusher.Flush()
-					return nil
-				}
-			}
-		}
-	} else {
-		duration := cozeCfg.RequestOutTime
-		if duration == 0 {
-			duration = defaultTimeout
-		}
-		var replyResp types.ChatCompletionResponse
-		timer := time.NewTimer(time.Duration(duration) * time.Second)
-		for {
+	duration := cozeCfg.RequestStreamOutTime
+	if duration == 0 {
+		duration = defaultTimeout
+	}
+	durationTime := time.Duration(duration) * time.Second
+	timer := time.NewTimer(durationTime)
+	rw := c.Response().Rw()
+	flusher, ok := rw.(http.Flusher)
+	if !ok {
+		return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "Flushing not supported",
+				Type:    "invalid_systems_error",
+				Code:    "systems_error",
+			},
+		})
+	}
+	header := rw.Header()
+	header.Set("Content-Type", vars.ContentTypeStream)
+	header.Set("Cache-Control", "no-cache")
+	header.Set("Connection", "keep-alive")
+	header.Set("Access-Control-Allow-Origin", "*")
+	rw.WriteHeader(200)
+	clientGone := rw.(http.CloseNotifier).CloseNotify()
+	lastMsg := ""
+	for {
+		select {
+		case <-clientGone:
+			return nil
+		default:
 			select {
 			case reply := <-replyChan:
-				replyResp = reply
+				timer.Reset(durationTime)
+				tMsg := strings.TrimPrefix(reply.Choices[0].Message.Content, lastMsg)
+				lastMsg = reply.Choices[0].Message.Content
+				if tMsg != "" {
+					reply.Choices[0].Message.Content = tMsg
+					reply.Object = "chat.completion.chunk"
+					bs, _ := fhblade.Json.MarshalToString(reply)
+					fmt.Fprintf(rw, "data: %s\n\n", bs)
+					flusher.Flush()
+				}
 			case <-timer.C:
-				return c.JSONAndStatus(http.StatusOK, types.ErrorResponse{
-					Error: &types.CError{
-						Message: "out time",
-						Type:    "request_error",
-						Code:    "request_out_time",
-					},
-				})
+				fmt.Fprint(rw, "data: [DONE]\n\n")
+				flusher.Flush()
+				return nil
 			case <-stopChan:
-				return c.JSONAndStatus(http.StatusOK, replyResp)
+				fmt.Fprint(rw, "data: [DONE]\n\n")
+				flusher.Flush()
+				return nil
 			}
 		}
 	}
@@ -262,9 +237,13 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 		"content-type":  {vars.ContentTypeJSON},
 	}
 	gClient := client.CPool.Get().(tlsClient.HttpClient)
+	proxyUrl := config.CozeProxyUrl()
+	if proxyUrl != "" {
+		gClient.SetProxy(proxyUrl)
+	}
 	resp, err := gClient.Do(req)
+	client.CPool.Put(gClient)
 	if err != nil {
-		client.CPool.Put(gClient)
 		fhblade.Log.Error("coze chat api v1 send msg req err",
 			zap.Error(err),
 			zap.String("data", reqJson))
@@ -276,7 +255,6 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 			},
 		})
 	}
-	client.CPool.Put(gClient)
 	defer resp.Body.Close()
 	rw := c.Response().Rw()
 	flusher, ok := rw.(http.Flusher)

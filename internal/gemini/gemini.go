@@ -123,8 +123,8 @@ func apiToApi(c *fhblade.Context, p types.StreamGenerateContent, idSign string) 
 		gClient.SetProxy(proxyUrl)
 	}
 	resp, err := gClient.Do(req)
+	client.CPool.Put(gClient)
 	if err != nil {
-		client.CPool.Put(gClient)
 		fhblade.Log.Error("gemini v1 send msg req err",
 			zap.Error(err),
 			zap.String("url", goUrl),
@@ -137,7 +137,6 @@ func apiToApi(c *fhblade.Context, p types.StreamGenerateContent, idSign string) 
 			},
 		})
 	}
-	client.CPool.Put(gClient)
 	defer resp.Body.Close()
 	rw := c.Response().Rw()
 	flusher, ok := rw.(http.Flusher)

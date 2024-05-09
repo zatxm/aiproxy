@@ -54,6 +54,8 @@ bing:
 
 # 相关配置
 coze:
+    # 代理,没有取全局proxy_url
+    # proxy_url: http://127.0.0.1:1081
     # coze通过discord
     # 创建bot A,用于交互监听信息
     # 创建bot B、C...托管coze
@@ -73,8 +75,6 @@ coze:
         # 用于发送信息
         auth:
             - ODk4NDxxxx2I3WLrAcIkg
-        # 代理
-        # proxy_url: http://127.0.0.1:1081
         # 对话接口非流响应下的请求超时时间
         request_out_time: 300
         # 对话接口流响应下的每次流返回超时时间
@@ -90,7 +90,7 @@ coze:
                 # 标识当前与Bot交互的用户
                 user: 1000000001
                 # 通信token,没有取全局access_token
-                access_token: 
+                access_token:
             -
                 bot_id: 731284xx535
                 user: 1000000002

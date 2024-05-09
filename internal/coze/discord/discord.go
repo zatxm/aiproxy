@@ -42,7 +42,7 @@ func Parse(ctx context.Context) {
 	}
 
 	// 处理代理
-	proxyUrl := cozeCfg.ProxyUrl
+	proxyUrl := config.CozeProxyUrl()
 	if proxyUrl != "" {
 		proxyUrlParse, err := url.Parse(proxyUrl)
 		if err != nil {

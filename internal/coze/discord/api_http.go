@@ -5,35 +5,15 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
-	"sync"
 	"time"
 
 	http "github.com/bogdanfinn/fhttp"
+	"github.com/zatxm/any-proxy/internal/client"
 	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/any-proxy/internal/vars"
 	"github.com/zatxm/fhblade"
 	tlsClient "github.com/zatxm/tls-client"
-	"github.com/zatxm/tls-client/profiles"
 	"go.uber.org/zap"
-)
-
-var (
-	cPool = sync.Pool{
-		New: func() interface{} {
-			c, err := tlsClient.NewHttpClient(tlsClient.NewNoopLogger(), []tlsClient.HttpClientOption{
-				tlsClient.WithTimeoutSeconds(600),
-				tlsClient.WithClientProfile(profiles.Okhttp4Android13),
-			}...)
-			if err != nil {
-				fhblade.Log.Error("discord init http client err", zap.Error(err))
-			}
-			proxyUrl := config.V().Coze.Discord.ProxyUrl
-			if proxyUrl != "" {
-				c.SetProxy(proxyUrl)
-			}
-			return c
-		},
-	}
 )
 
 func SendMsg(content string) (string, error) {
@@ -62,15 +42,18 @@ func SendMsg(content string) (string, error) {
 	req.Header.Set("User-Agent", vars.UserAgent)
 
 	// 请求
-	gClient := cPool.Get().(tlsClient.HttpClient)
+	gClient := client.CPool.Get().(tlsClient.HttpClient)
+	proxyUrl := config.CozeProxyUrl()
+	if proxyUrl != "" {
+		gClient.SetProxy(proxyUrl)
+	}
 	resp, err := gClient.Do(req)
+	client.CPool.Put(gClient)
 	if err != nil {
-		cPool.Put(gClient)
 		fhblade.Log.Error("discord api http send msg req err", zap.Error(err))
 		return "", err
 	}
 	defer resp.Body.Close()
-	cPool.Put(gClient)
 
 	// 处理响应
 	var result map[string]interface{}

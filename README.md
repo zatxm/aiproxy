@@ -63,7 +63,7 @@ docker run -d --name myproxy --restart always -p 8084:8999 -v /opt/anyproxy:/anp
 
 **1. 通用接口/c/v1/chat/completions**
 
-支持通信头部header加入密钥(不加随机获取配置文件的密钥)，一般以下两种：
+支持通信头部header加入密钥(不加随机获取配置文件的密钥)，bing暂时不需要，一般以下两种：
 
 * **Authorization**：通用
 * **x-auth-id**：对应配置密钥ID，根据此值获取配置文件中设置的密钥
@@ -90,9 +90,9 @@ provider参数说明如下：
   ```
   "openai": {
       "conversation": {
-          "conversation_id":"697b28e8-e228-4abb-b356-c8ccdccf82f3",
-          "parent_message_id":"dd6d9561-bebe-42da-91c6-f8fde6b105d9",
-          "last_message_id":"9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
+          "conversation_id": "697b28e8-e228-4abb-b356-c8ccdccf82f3",
+          "parent_message_id": "dd6d9561-bebe-42da-91c6-f8fde6b105d9",
+          "last_message_id": "9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
       }
   }
   ```
@@ -114,6 +114,34 @@ provider参数说明如下：
   * 如果传递Authorization鉴权，还可以传递x-version指定api版本，默认v1beta
 
 * **bing**：微软bing chat,有IP要求，不符合会出验证码
+
+  额外参数：
+
+  ```
+  "bing": {
+      "conversation": {
+          "conversationId": "xxxx",
+          "clientId": "xxxx",
+          "Signature": "xxx",
+          "TraceId": "xxx"
+      }
+  }
+  ```
+
+  * 表示在同一会话基础上进行对话，此值在任一对话通信后会返回
+
+  额外返回：
+
+  ```
+  "bing": {
+      "conversationId": "xxxx",
+      "clientId": "xxxx",
+      "Signature": "xxx",
+      "TraceId": "xxx"
+      ...
+  }
+  ```
+
 * **coze**：支持discord和api,走api时model传coze-api
 * **claude**：目前支持claude web chat,后续加入api to api
 

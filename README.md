@@ -97,7 +97,7 @@ provider参数说明如下：
   }
   ```
 
-  > 表示在同一会话基础上进行对话，此值在任一对话通信后会返回
+  * 表示在同一会话基础上进行对话，此值在任一对话通信后会返回
 
 * **gemini**：谷歌gemini pro
 
@@ -110,8 +110,8 @@ provider参数说明如下：
   }
   ```
 
-  > index为密钥ID,优先级高于x-auth-id  
-  > 如果传递Authorization鉴权，还可以传递x-version指定api版本，默认v1beta
+  * index为密钥ID,优先级高于x-auth-id  
+  * 如果传递Authorization鉴权，还可以传递x-version指定api版本，默认v1beta
 
 * **bing**：微软bing chat,有IP要求，不符合会出验证码
 * **coze**：支持discord和api,走api时model传coze-api
@@ -131,9 +131,9 @@ provider参数说明如下：
   }
   ```
 
-  > 其中，如果没传claude或者传type为api，走claude api接口，其他情况走web  
-  > index为密钥ID,优先级高于x-auth-id  
-  > conversation，web专用，表示在同一会话基础上进行对话，此值在任一对话通信后会返回
+  * 其中，如果没传claude或者传type为api，走claude api接口，其他情况走web  
+  * index为密钥ID,优先级高于x-auth-id  
+  * conversation，web专用，表示在同一会话基础上进行对话，此值在任一对话通信后会返回
 
 * **不传或不支持**的provider默认走openai的v1/chat/completions接口
 

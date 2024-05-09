@@ -67,7 +67,7 @@ type messageParams struct {
 // 转发web请求
 func ProxyWeb() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		path := c.Get("path")
+		path := "/" + c.Get("path")
 		query := c.Request().RawQuery()
 
 		// 请求头

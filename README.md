@@ -63,6 +63,11 @@ docker run -d --name myproxy --restart always -p 8084:8999 -v /opt/anyproxy:/anp
 
 **1. 通用接口/c/v1/chat/completions**
 
+支持通信头部header加入密钥(不加随机获取配置文件的密钥)，一般以下两种：
+
+* **Authorization**：通用
+* **x-auth-id**：对应配置密钥ID，根据此值获取配置文件中设置的密钥
+
 ```
 curl -X POST http://192.168.0.1:8999/c/v1/chat/completions -d '{
     "messages": [
@@ -80,7 +85,7 @@ provider参数说明如下：
 
 * **openai-chat-web**：openai web chat,支持免登录(有IP要求，一般美国IP就行)
 
-后续如需在同一会话基础上进行对话需传递参数openai，通信后会返回conversation信息
+额外参数：
 
 ```
 "openai": {
@@ -92,10 +97,41 @@ provider参数说明如下：
 }
 ```
 
+表示在同一会话基础上进行对话，此值在任一对话通信后会返回
+
 * **gemini**：谷歌gemini pro
 * **bing**：微软bing chat,有IP要求，不符合会出验证码
 * **coze**：支持discord和api,走api时model传coze-api
 * **claude**：目前支持claude web chat,后续加入api to api
+
+额外参数
+
+```
+"claude": {
+    "type": "web",
+    "index": "100001",
+    "conversation": {
+        "uuid": "xxxx"
+        "model" "xxx",
+        ...
+    }
+}
+```
+
+* 其中，如果没传claude或者传type为api，走claude api接口，其他情况走web
+* index为密钥ID,优先级高于x-auth-id
+* conversation，web专用，表示在同一会话基础上进行对话，此值在任一对话通信后会返回
+
+```
+"openai": {
+    "conversation": {
+        "conversation_id":"697b28e8-e228-4abb-b356-c8ccdccf82f3",
+        "parent_message_id":"dd6d9561-bebe-42da-91c6-f8fde6b105d9",
+        "last_message_id":"9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
+    }
+}
+```
+
 * **不传或不支持**的provider默认走openai的v1/chat/completions接口
 
 **2. openai web转api**
@@ -124,3 +160,9 @@ provider参数说明如下：
     "websocket_request_id":"bf740f5f-2335-4903-94df-4003819fdade"
 }
 ```
+
+**3. claude相关接口**
+
+* /claude/web/*path，转发web端，path参数为转发的path，下同
+* /claude/api/*path，转发api
+* post /claude/api/openai，api转openai api格式，此接口支持头部传递Authorization、x-api-key、x-auth-id鉴权(按此排序依次优先获取)，不传随机获取配置密钥

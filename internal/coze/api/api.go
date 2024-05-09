@@ -34,7 +34,7 @@ var (
 	endTag               = []byte{10}
 )
 
-func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
+func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error {
 	if p.Model == ApiChatModel {
 		return doApiChat(c, p)
 	}
@@ -43,59 +43,50 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "not support coze discord",
-				CType:   "invalid_config_error",
+				Type:    "invalid_config_error",
 				Code:    "systems_err",
 			},
 		})
 	}
 	// 判断请求内容
-	content := ""
+	prompt := ""
 	for k := range p.Messages {
 		message := p.Messages[k]
 		if message.Role == "user" {
-			switch text := message.Content.(type) {
-			case string:
-				content = text
-			case []interface{}:
+			if message.MultiContent != nil {
 				var err error
-				content, err = buildGPT4VForImageContent(text)
+				prompt, err = buildGPT4VForImageContent(message.MultiContent)
 				if err != nil {
 					return c.JSONAndStatus(http.StatusOK, fhblade.H{
 						"success": false,
 						"message": err.Error()})
 				}
-			default:
-				return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
-					Error: &types.CError{
-						Message: "params error",
-						CType:   "invalid_request_error",
-						Code:    "discord_request_err",
-					},
-				})
+			} else {
+				prompt = message.Content
 			}
 		}
 	}
-	if content == "" {
+	if prompt == "" {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "params error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "discord_request_err",
 			},
 		})
 	}
-	sentMsg, err := discord.SendMessage(content, "")
+	sentMsg, err := discord.SendMessage(prompt, "")
 	if err != nil {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "discord_request_err",
 			},
 		})
 	}
 
-	replyChan := make(chan types.CompletionResponse)
+	replyChan := make(chan types.ChatCompletionResponse)
 	discord.RepliesOpenAIChans[sentMsg.ID] = replyChan
 	defer delete(discord.RepliesOpenAIChans, sentMsg.ID)
 
@@ -116,7 +107,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
 				Error: &types.CError{
 					Message: "Flushing not supported",
-					CType:   "invalid_systems_error",
+					Type:    "invalid_systems_error",
 					Code:    "systems_error",
 				},
 			})
@@ -162,7 +153,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		if duration == 0 {
 			duration = defaultTimeout
 		}
-		var replyResp types.CompletionResponse
+		var replyResp types.ChatCompletionResponse
 		timer := time.NewTimer(time.Duration(duration) * time.Second)
 		for {
 			select {
@@ -172,7 +163,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 				return c.JSONAndStatus(http.StatusOK, types.ErrorResponse{
 					Error: &types.CError{
 						Message: "out time",
-						CType:   "request_error",
+						Type:    "request_error",
 						Code:    "request_out_time",
 					},
 				})
@@ -183,28 +174,19 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 	}
 }
 
-func buildGPT4VForImageContent(objs []interface{}) (string, error) {
+func buildGPT4VForImageContent(objs []*types.ChatMessagePart) (string, error) {
 	var contentBuilder strings.Builder
 	for k := range objs {
 		obj := objs[k]
-		jd, err := fhblade.Json.Marshal(obj)
-		if err != nil {
-			return "", err
-		}
-		var req types.GPT4VImagesReq
-		err = fhblade.Json.Unmarshal(jd, &req)
-		if err != nil {
-			return "", err
-		}
-		if k == 0 && req.Type == "text" {
-			contentBuilder.WriteString(req.Text)
+		if k == 0 && obj.Type == "text" {
+			contentBuilder.WriteString(obj.Text)
 			continue
-		} else if k == 1 && req.Type == "image_url" {
-			if support.EqURL(req.ImageURL.URL) {
+		} else if k == 1 && obj.Type == "image_url" {
+			if support.EqURL(obj.ImageURL.URL) {
 				contentBuilder.WriteString("\n")
-				contentBuilder.WriteString(req.ImageURL.URL)
-			} else if support.EqImageBase64(req.ImageURL.URL) {
-				url, err := discord.UploadToDiscordURL(req.ImageURL.URL)
+				contentBuilder.WriteString(obj.ImageURL.URL)
+			} else if support.EqImageBase64(obj.ImageURL.URL) {
+				url, err := discord.UploadToDiscordURL(obj.ImageURL.URL)
 				if err != nil {
 					return "", err
 				}
@@ -224,13 +206,13 @@ func buildGPT4VForImageContent(objs []interface{}) (string, error) {
 	return contentBuilder.String(), nil
 }
 
-func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
+func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 	prompt := p.ParsePromptText()
 	if prompt == "" {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "params error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -240,7 +222,7 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "config error",
-				CType:   "invalid_config_error",
+				Type:    "invalid_config_error",
 				Code:    "systems_err",
 			},
 		})
@@ -268,7 +250,7 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "systems_err",
 			},
 		})
@@ -289,7 +271,7 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "systems_err",
 			},
 		})
@@ -302,7 +284,7 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "Flushing not supported",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "systems_err",
 			},
 		})
@@ -344,15 +326,15 @@ func doApiChat(c *fhblade.Context, p types.CompletionRequest) error {
 				break
 			}
 			if chatRes.Message.CType == "answer" && chatRes.Message.Content != "" {
-				var choices []*types.Choice
-				choices = append(choices, &types.Choice{
+				var choices []*types.ChatCompletionChoice
+				choices = append(choices, &types.ChatCompletionChoice{
 					Index: chatRes.Index,
-					Message: &types.ResMessageOrDelta{
+					Message: &types.ChatCompletionMessage{
 						Role:    "assistant",
 						Content: chatRes.Message.Content,
 					},
 				})
-				outRes := &types.CompletionResponse{
+				outRes := &types.ChatCompletionResponse{
 					ID:      chatRes.ConversationId,
 					Choices: choices,
 					Created: now,

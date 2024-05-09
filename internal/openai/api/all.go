@@ -13,12 +13,12 @@ import (
 // v1/chat/completions通用接口，目前只支持stream=true
 func DoChatCompletions() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		var p types.CompletionRequest
+		var p types.ChatCompletionRequest
 		if err := c.ShouldBindJSON(&p); err != nil {
 			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 				Error: &types.CError{
 					Message: "params error",
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "invalid_parameter",
 				},
 			})

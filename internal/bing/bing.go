@@ -168,7 +168,7 @@ func DoCreateConversation() func(*fhblade.Context) error {
 
 func DoSendMessage() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		var p types.CompletionRequest
+		var p types.ChatCompletionRequest
 		if err := c.ShouldBindJSON(&p); err != nil {
 			return c.JSONAndStatus(http.StatusBadRequest, fhblade.H{"errorMessage": "params error"})
 		}
@@ -176,13 +176,13 @@ func DoSendMessage() func(*fhblade.Context) error {
 	}
 }
 
-func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
+func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error {
 	prompt := p.ParsePromptText()
 	if prompt == "" {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "params error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -198,7 +198,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -211,7 +211,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -249,7 +249,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -265,7 +265,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -280,7 +280,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -312,7 +312,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -333,7 +333,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -346,7 +346,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "Flushing not supported",
-				CType:   "invalid_systems_error",
+				Type:    "invalid_systems_error",
 				Code:    "systems_error",
 			},
 		})
@@ -429,15 +429,15 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 						tMsg := strings.TrimPrefix(resMsg, lastMsg)
 						lastMsg = resMsg
 						if tMsg != "" {
-							var choices []*types.Choice
-							choices = append(choices, &types.Choice{
+							var choices []*types.ChatCompletionChoice
+							choices = append(choices, &types.ChatCompletionChoice{
 								Index: 0,
-								Message: &types.ResMessageOrDelta{
+								Message: &types.ChatCompletionMessage{
 									Role:    "assistant",
 									Content: tMsg,
 								},
 							})
-							outRes := types.CompletionResponse{
+							outRes := types.ChatCompletionResponse{
 								ID:      p.Bing.Conversation.ConversationId,
 								Choices: choices,
 								Created: now,
@@ -462,7 +462,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -474,7 +474,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -485,7 +485,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})

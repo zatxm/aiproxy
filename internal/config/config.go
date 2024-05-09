@@ -72,13 +72,20 @@ type cozeApiBot struct {
 }
 
 type claude struct {
-	ApiVersion  string        `yaml:"api_version"`
-	WebSessions []*websession `yaml:"web_sessions"`
+	ApiVersion  string          `yaml:"api_version"`
+	WebSessions []*websession   `yaml:"web_sessions"`
+	ApiKeys     []*claudeApiKey `yaml:"api_keys"`
 }
 
 type websession struct {
+	Id             string `yaml:"id"`
 	Val            string `yaml:"val"`
 	OrganizationId string `yaml:"organization_id"`
+}
+
+type claudeApiKey struct {
+	Id  string `yaml:"id"`
+	Val string `yaml:"val"`
 }
 
 func V() *Config {

@@ -25,7 +25,7 @@ var (
 	Session                 *discordgo.Session
 	ReplyStopChans          = make(map[string]chan ChannelStopChan)
 	RepliesChans            = make(map[string]chan ReplyResp)
-	RepliesOpenAIChans      = make(map[string]chan types.CompletionResponse)
+	RepliesOpenAIChans      = make(map[string]chan types.ChatCompletionResponse)
 	RepliesOpenAIImageChans = make(map[string]chan types.ImagesGenerationResponse)
 
 	CozeDailyLimitError = "You have exceeded the daily limit for sending messages to the bot. Please try again later."
@@ -202,7 +202,7 @@ func dealMessageCreate(m *discordgo.MessageCreate) ReplyResp {
 	}
 }
 
-func dealOpenAIMessageCreate(m *discordgo.MessageCreate) types.CompletionResponse {
+func dealOpenAIMessageCreate(m *discordgo.MessageCreate) types.ChatCompletionResponse {
 	if len(m.Embeds) > 0 {
 		for k := range m.Embeds {
 			embed := m.Embeds[k]
@@ -221,15 +221,15 @@ func dealOpenAIMessageCreate(m *discordgo.MessageCreate) types.CompletionRespons
 		}
 	}
 
-	var choices []*types.Choice
-	choices = append(choices, &types.Choice{
+	var choices []*types.ChatCompletionChoice
+	choices = append(choices, &types.ChatCompletionChoice{
 		Index: 0,
-		Message: &types.ResMessageOrDelta{
+		Message: &types.ChatCompletionMessage{
 			Role:    "assistant",
 			Content: m.Content,
 		},
 	})
-	return types.CompletionResponse{
+	return types.ChatCompletionResponse{
 		ID:      m.ID,
 		Choices: choices,
 		Created: time.Now().Unix(),
@@ -253,7 +253,7 @@ func dealOpenAIImageMessageCreate(m *discordgo.MessageCreate) types.ImagesGenera
 	submatches := re.FindAllStringSubmatch(m.Content, -1)
 	for k := range submatches {
 		match := submatches[k]
-		response.Data = append(response.Data, &types.ImageDataURL{URL: match[1]})
+		response.Data = append(response.Data, &types.ChatMessageImageURL{URL: match[1]})
 	}
 	if len(m.Embeds) > 0 {
 		for k := range m.Embeds {
@@ -262,7 +262,7 @@ func dealOpenAIImageMessageCreate(m *discordgo.MessageCreate) types.ImagesGenera
 				if m.Content != "" {
 					m.Content += "\n"
 				}
-				response.Data = append(response.Data, &types.ImageDataURL{URL: embed.Image.URL})
+				response.Data = append(response.Data, &types.ChatMessageImageURL{URL: embed.Image.URL})
 			}
 		}
 	}
@@ -286,7 +286,7 @@ func dealMessageUpdate(m *discordgo.MessageUpdate) ReplyResp {
 	}
 }
 
-func dealOpenAIMessageUpdate(m *discordgo.MessageUpdate) types.CompletionResponse {
+func dealOpenAIMessageUpdate(m *discordgo.MessageUpdate) types.ChatCompletionResponse {
 	if len(m.Embeds) > 0 {
 		for k := range m.Embeds {
 			embed := m.Embeds[k]
@@ -305,15 +305,15 @@ func dealOpenAIMessageUpdate(m *discordgo.MessageUpdate) types.CompletionRespons
 		}
 	}
 
-	var choices []*types.Choice
-	choices = append(choices, &types.Choice{
+	var choices []*types.ChatCompletionChoice
+	choices = append(choices, &types.ChatCompletionChoice{
 		Index: 0,
-		Message: &types.ResMessageOrDelta{
+		Message: &types.ChatCompletionMessage{
 			Role:    "assistant",
 			Content: m.Content,
 		},
 	})
-	return types.CompletionResponse{
+	return types.ChatCompletionResponse{
 		ID:      m.ID,
 		Choices: choices,
 		Created: time.Now().Unix(),
@@ -337,7 +337,7 @@ func dealOpenAIImageMessageUpdate(m *discordgo.MessageUpdate) types.ImagesGenera
 	submatches := re.FindAllStringSubmatch(m.Content, -1)
 	for k := range submatches {
 		match := submatches[k]
-		response.Data = append(response.Data, &types.ImageDataURL{URL: match[1]})
+		response.Data = append(response.Data, &types.ChatMessageImageURL{URL: match[1]})
 	}
 	if len(m.Embeds) > 0 {
 		for k := range m.Embeds {
@@ -346,7 +346,7 @@ func dealOpenAIImageMessageUpdate(m *discordgo.MessageUpdate) types.ImagesGenera
 				if m.Content != "" {
 					m.Content += "\n"
 				}
-				response.Data = append(response.Data, &types.ImageDataURL{URL: embed.Image.URL})
+				response.Data = append(response.Data, &types.ChatMessageImageURL{URL: embed.Image.URL})
 			}
 		}
 	}

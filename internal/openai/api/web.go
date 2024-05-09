@@ -89,7 +89,7 @@ func DoAsk(c *fhblade.Context, tag string) error {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "params error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -109,7 +109,7 @@ func DoWebToApi(c *fhblade.Context, tag string) error {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "params error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -128,7 +128,7 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 		return nil, http.StatusInternalServerError, &types.ErrorResponse{
 			Error: &types.CError{
 				Message: "config error",
-				CType:   "invalid_config_error",
+				Type:    "invalid_config_error",
 				Code:    "systems_err",
 			},
 		}
@@ -144,7 +144,7 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 		return nil, http.StatusBadRequest, &types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		}
@@ -172,7 +172,7 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 		return nil, http.StatusInternalServerError, &types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		}
@@ -189,7 +189,7 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 		return nil, http.StatusInternalServerError, &types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		}
@@ -202,7 +202,7 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 		return nil, http.StatusInternalServerError, &types.ErrorResponse{
 			Error: &types.CError{
 				Message: "Requirement token error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		}
@@ -227,7 +227,7 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 		return nil, http.StatusInternalServerError, &types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		}
@@ -262,7 +262,7 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 		return nil, http.StatusInternalServerError, &types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		}
@@ -282,7 +282,7 @@ func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "Flushing not supported",
-				CType:   "invalid_systems_error",
+				Type:    "invalid_systems_error",
 				Code:    "systems_error",
 			},
 		})
@@ -293,7 +293,7 @@ func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(resp.StatusCode, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "request status error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -308,7 +308,7 @@ func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -319,7 +319,7 @@ func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "data error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -336,7 +336,7 @@ func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
 			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -353,7 +353,7 @@ func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -430,7 +430,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "Flushing not supported",
-				CType:   "invalid_systems_error",
+				Type:    "invalid_systems_error",
 				Code:    "systems_error",
 			},
 		})
@@ -477,15 +477,15 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 					tMsg := strings.TrimPrefix(parts[0], lastMsg)
 					lastMsg = parts[0]
 					if tMsg != "" {
-						var choices []*types.Choice
-						choices = append(choices, &types.Choice{
+						var choices []*types.ChatCompletionChoice
+						choices = append(choices, &types.ChatCompletionChoice{
 							Index: 0,
-							Message: &types.ResMessageOrDelta{
+							Message: &types.ChatCompletionMessage{
 								Role:    "assistant",
 								Content: tMsg,
 							},
 						})
-						outRes := &types.CompletionResponse{
+						outRes := &types.ChatCompletionResponse{
 							ID:      chatRes.Message.ID,
 							Choices: choices,
 							Created: int64(chatRes.Message.CreateTime),
@@ -514,7 +514,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(resp.StatusCode, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "request status error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -529,7 +529,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -540,7 +540,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "data error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -557,7 +557,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -574,7 +574,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -645,15 +645,15 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 					tMsg := strings.TrimPrefix(parts[0], lastMsg)
 					lastMsg = parts[0]
 					if tMsg != "" {
-						var choices []*types.Choice
-						choices = append(choices, &types.Choice{
+						var choices []*types.ChatCompletionChoice
+						choices = append(choices, &types.ChatCompletionChoice{
 							Index: 0,
-							Message: &types.ResMessageOrDelta{
+							Message: &types.ChatCompletionMessage{
 								Role:    "assistant",
 								Content: tMsg,
 							},
 						})
-						outRes := &types.CompletionResponse{
+						outRes := &types.ChatCompletionResponse{
 							ID:      chatRes.Message.ID,
 							Choices: choices,
 							Created: int64(chatRes.Message.CreateTime),
@@ -699,7 +699,7 @@ func DoAnon() func(*fhblade.Context) error {
 			return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 				Error: &types.CError{
 					Message: "params error",
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -744,14 +744,14 @@ func GenerateProofToken(seed string, diff string) string {
 	return "gAAAAABwQ8Lk5FbGpA2NcR9dShT6gYjU7VxZ4D" + base64.StdEncoding.EncodeToString([]byte(`"`+seed+`"`))
 }
 
-func DoChatCompletionsByWeb(c *fhblade.Context, p types.CompletionRequest) error {
+func DoChatCompletionsByWeb(c *fhblade.Context, p types.ChatCompletionRequest) error {
 	// 判断、构造请求参数
 	prompt := p.ParsePromptText()
 	if prompt == "" {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "params error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -770,7 +770,7 @@ func DoChatCompletionsByWeb(c *fhblade.Context, p types.CompletionRequest) error
 	}
 	var messages []*types.OpenAiMessage
 	messages = append(messages, &types.OpenAiMessage{
-		Id:     messageId,
+		ID:     messageId,
 		Author: &types.OpenAiAuthor{Role: "user"},
 		Content: &types.OpenAiContent{
 			ContentType: "text",

@@ -1,44 +1,154 @@
 package types
 
 import (
+	"errors"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/fhblade"
+	"github.com/zatxm/fhblade/tools"
 )
 
-type CompletionRequest struct {
-	Messages         []*ReqMessage            `json:"messages" binding:"required"`
-	Model            string                   `json:"model" binding:"required"`
-	FrequencyPenalty float64                  `json:"frequency_penalty,omitempty"`
-	LogitBias        interface{}              `json:"logit_bias,omitempty"`
-	Logprobs         bool                     `json:"logprobs,omitempty"`
-	TopLogprobs      int                      `json:"top_logprobs,omitempty"`
-	MaxTokens        int                      `json:"max_tokens,omitempty"`
-	N                int                      `json:"n,omitempty"`
-	PresencePenalty  float64                  `json:"presence_penalty,omitempty"`
-	ResponseFormat   map[string]string        `json:"response_format,omitempty"`
-	Seed             int                      `json:"seed,omitempty"`
-	Stop             interface{}              `json:"stop,omitempty"`
-	Stream           bool                     `json:"stream,omitempty"`
-	Temperature      float64                  `json:"temperature,omitempty"`
-	TopP             float64                  `json:"top_p,omitempty"`
-	Tools            map[string]interface{}   `json:"tools,omitempty"`
-	ToolChoice       interface{}              `json:"tool_choice,omitempty"`
-	User             string                   `json:"user,omitempty"`
-	Provider         string                   `json:"provider,omitempty"`
-	OpenAi           *OpenAiCompletionRequest `json:"openai,omitempty"`
-	Bing             *BingCompletionRequest   `json:"bing,omitempty"`
-	Coze             *CozeCompletionRequest   `json:"coze,omitempty"`
-	Claude           *ClaudeCompletionRequest `json:"claude,omitempty"`
+var (
+	ErrContentFieldsMisused = errors.New("can't use both Content and MultiContent properties simultaneously")
+)
+
+type ChatCompletionRequest struct {
+	Messages         []*ChatCompletionMessage      `json:"messages" binding:"required"`
+	Model            string                        `json:"model" binding:"required"`
+	FrequencyPenalty float64                       `json:"frequency_penalty,omitempty"`
+	LogitBias        map[string]int                `json:"logit_bias,omitempty"`
+	Logprobs         bool                          `json:"logprobs,omitempty"`
+	TopLogprobs      int                           `json:"top_logprobs,omitempty"`
+	MaxTokens        int                           `json:"max_tokens,omitempty"`
+	N                int                           `json:"n,omitempty"`
+	PresencePenalty  float64                       `json:"presence_penalty,omitempty"`
+	ResponseFormat   *ChatCompletionResponseFormat `json:"response_format,omitempty"`
+	Seed             int                           `json:"seed,omitempty"`
+	Stop             []string                      `json:"stop,omitempty"`
+	Stream           bool                          `json:"stream,omitempty"`
+	Temperature      float64                       `json:"temperature,omitempty"`
+	TopP             float64                       `json:"top_p,omitempty"`
+	Tools            []Tool                        `json:"tools,omitempty"`
+	ToolChoice       any                           `json:"tool_choice,omitempty"`
+	User             string                        `json:"user,omitempty"`
+	StreamOptions    *StreamOptions                `json:"stream_options,omitempty"`
+	Provider         string                        `json:"provider,omitempty"`
+	OpenAi           *OpenAiCompletionRequest      `json:"openai,omitempty"`
+	Bing             *BingCompletionRequest        `json:"bing,omitempty"`
+	Coze             *CozeCompletionRequest        `json:"coze,omitempty"`
+	Claude           *ClaudeCompletionRequest      `json:"claude,omitempty"`
 }
 
-type ReqMessage struct {
-	Role    string      `json:"role"`
-	Content interface{} `json:"content"`
-	Name    string      `json:"name,omitempty"`
+type ChatCompletionMessage struct {
+	Role         string `json:"role"`
+	Content      string `json:"content"`
+	MultiContent []*ChatMessagePart
+	Name         string        `json:"name,omitempty"`
+	FunctionCall *FunctionCall `json:"function_call,omitempty"`
+	ToolCalls    []*ToolCall   `json:"tool_calls,omitempty"`
+	ToolCallID   string        `json:"tool_call_id,omitempty"`
+}
+
+func (m *ChatCompletionMessage) MarshalJSON() ([]byte, error) {
+	if m.Content != "" && m.MultiContent != nil {
+		return nil, ErrContentFieldsMisused
+	}
+	if len(m.MultiContent) > 0 {
+		msg := struct {
+			Role         string             `json:"role"`
+			Content      string             `json:"-"`
+			MultiContent []*ChatMessagePart `json:"content,omitempty"`
+			Name         string             `json:"name,omitempty"`
+			FunctionCall *FunctionCall      `json:"function_call,omitempty"`
+			ToolCalls    []*ToolCall        `json:"tool_calls,omitempty"`
+			ToolCallID   string             `json:"tool_call_id,omitempty"`
+		}(*m)
+		return fhblade.Json.Marshal(msg)
+	}
+	msg := struct {
+		Role         string             `json:"role"`
+		Content      string             `json:"content"`
+		MultiContent []*ChatMessagePart `json:"-"`
+		Name         string             `json:"name,omitempty"`
+		FunctionCall *FunctionCall      `json:"function_call,omitempty"`
+		ToolCalls    []*ToolCall        `json:"tool_calls,omitempty"`
+		ToolCallID   string             `json:"tool_call_id,omitempty"`
+	}(*m)
+	return fhblade.Json.Marshal(msg)
+}
+
+func (m *ChatCompletionMessage) UnmarshalJSON(bs []byte) error {
+	msg := struct {
+		Role         string `json:"role"`
+		Content      string `json:"content"`
+		MultiContent []*ChatMessagePart
+		Name         string        `json:"name,omitempty"`
+		FunctionCall *FunctionCall `json:"function_call,omitempty"`
+		ToolCalls    []*ToolCall   `json:"tool_calls,omitempty"`
+		ToolCallID   string        `json:"tool_call_id,omitempty"`
+	}{}
+	if err := fhblade.Json.Unmarshal(bs, &msg); err == nil {
+		*m = ChatCompletionMessage(msg)
+		return nil
+	}
+	multiMsg := struct {
+		Role         string `json:"role"`
+		Content      string
+		MultiContent []*ChatMessagePart `json:"content"`
+		Name         string             `json:"name,omitempty"`
+		FunctionCall *FunctionCall      `json:"function_call,omitempty"`
+		ToolCalls    []*ToolCall        `json:"tool_calls,omitempty"`
+		ToolCallID   string             `json:"tool_call_id,omitempty"`
+	}{}
+	if err := fhblade.Json.Unmarshal(bs, &multiMsg); err != nil {
+		return err
+	}
+	*m = ChatCompletionMessage(multiMsg)
+	return nil
+}
+
+type ToolCall struct {
+	Index    *int         `json:"index,omitempty"`
+	ID       string       `json:"id"`
+	Type     string       `json:"type"`
+	Function FunctionCall `json:"function"`
+}
+
+type FunctionCall struct {
+	Name      string `json:"name,omitempty"`
+	Arguments string `json:"arguments,omitempty"`
+}
+
+type ChatMessagePart struct {
+	Type     string               `json:"type,omitempty"`
+	Text     string               `json:"text,omitempty"`
+	ImageURL *ChatMessageImageURL `json:"image_url,omitempty"`
+}
+
+type ChatMessageImageURL struct {
+	URL    string `json:"url,omitempty"`
+	Detail string `json:"detail,omitempty"`
+}
+
+type ChatCompletionResponseFormat struct {
+	Type string `json:"type"`
+}
+
+type Tool struct {
+	Type     string              `json:"type"`
+	Function *FunctionDefinition `json:"function,omitempty"`
+}
+
+type FunctionDefinition struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Parameters  any    `json:"parameters"`
+}
+
+type StreamOptions struct {
+	IncludeUsage bool `json:"include_usage,omitempty"`
 }
 
 type ErrorResponse struct {
@@ -47,14 +157,14 @@ type ErrorResponse struct {
 
 type CError struct {
 	Message string `json:"message"`
-	CType   string `json:"type"`
+	Type    string `json:"type"`
 	Param   string `json:"param"`
 	Code    string `json:"code"`
 }
 
-type CompletionResponse struct {
+type ChatCompletionResponse struct {
 	ID                string                    `json:"id"`
-	Choices           []*Choice                 `json:"choices"`
+	Choices           []*ChatCompletionChoice   `json:"choices"`
 	Created           int64                     `json:"created"`
 	Model             string                    `json:"model"`
 	SystemFingerprint string                    `json:"system_fingerprint"`
@@ -66,18 +176,30 @@ type CompletionResponse struct {
 	Claude            *ClaudeCompletionResponse `json:"claude,omitempty"`
 }
 
-type Choice struct {
-	Index        int                `json:"index"`
-	Message      *ResMessageOrDelta `json:"message"`
-	LogProbs     interface{}        `json:"logprobs"`
-	FinishReason string             `json:"finish_reason"`
-	Delta        *ResMessageOrDelta `json:"delta,omitempty"`
+type ChatCompletionChoice struct {
+	Index        int                    `json:"index"`
+	Message      *ChatCompletionMessage `json:"message,omitempty"`
+	LogProbs     *LogProbs              `json:"logprobs"`
+	FinishReason string                 `json:"finish_reason"`
+	Delta        *ChatCompletionMessage `json:"delta,omitempty"`
 }
 
-type ResMessageOrDelta struct {
-	Role      string                   `json:"role"`
-	Content   string                   `json:"content"`
-	ToolCalls []map[string]interface{} `json:"tool_calls,omitempty"`
+type LogProbs struct {
+	// Content is a list of message content tokens with log probability information.
+	Content []LogProb `json:"content"`
+}
+
+type LogProb struct {
+	Token       string        `json:"token"`
+	LogProb     float64       `json:"logprob"`
+	Bytes       []byte        `json:"bytes,omitempty"` // Omitting the field if it is null
+	TopLogProbs []TopLogProbs `json:"top_logprobs"`
+}
+
+type TopLogProbs struct {
+	Token   string  `json:"token"`
+	LogProb float64 `json:"logprob"`
+	Bytes   []byte  `json:"bytes,omitempty"`
 }
 
 type Usage struct {
@@ -92,19 +214,9 @@ type ImagesGenerationRequest struct {
 }
 
 type ImagesGenerationResponse struct {
-	Created    int64           `json:"created"`
-	Data       []*ImageDataURL `json:"data"`
-	DailyLimit bool            `json:"dailyLimit,omitempty"`
-}
-
-type GPT4VImagesReq struct {
-	Type     string       `json:"type"`
-	Text     string       `json:"text"`
-	ImageURL ImageDataURL `json:"image_url"`
-}
-
-type ImageDataURL struct {
-	URL string `json:"url"`
+	Created    int64                  `json:"created"`
+	Data       []*ChatMessageImageURL `json:"data"`
+	DailyLimit bool                   `json:"dailyLimit,omitempty"`
 }
 
 type OpenAiCompletionRequest struct {
@@ -139,14 +251,14 @@ type OpenAiCompletionChatRequest struct {
 }
 
 type OpenAiMessage struct {
-	Id      string         `json:"id" binding:"required"`
+	ID      string         `json:"id" binding:"required"`
 	Author  *OpenAiAuthor  `json:"author" binding:"required"`
 	Content *OpenAiContent `json:"content" binding:"required"`
 }
 
 type OpenAiAuthor struct {
 	Role     string          `json:"role"`
-	Name     interface{}     `json:"name,omitempty"`
+	Name     any             `json:"name,omitempty"`
 	Metadata *OpenAiMetadata `json:"metadata,omitempty"`
 }
 
@@ -160,14 +272,14 @@ type OpenAiMetadata struct {
 	Timestamp         string         `json:"timestamp_,omitempty"`
 	FinishDetails     *FinishDetails `json:"finish_details,omitempty"`
 	Citations         []*Citation    `json:"citations,omitempty"`
-	GizmoId           interface{}    `json:"gizmo_id,omitempty"`
+	GizmoId           any            `json:"gizmo_id,omitempty"`
 	IsComplete        bool           `json:"is_complete,omitempty"`
 	MessageType       string         `json:"message_type,omitempty"`
 	ModelSlug         string         `json:"model_slug,omitempty"`
 	DefaultModelSlug  string         `json:"default_model_slug,omitempty"`
 	Pad               string         `json:"pad,omitempty"`
 	ParentId          string         `json:"parent_id,omitempty"`
-	ModelSwitcherDeny []interface{}  `json:"model_switcher_deny,omitempty"`
+	ModelSwitcherDeny []any          `json:"model_switcher_deny,omitempty"`
 }
 
 type FinishDetails struct {
@@ -188,17 +300,17 @@ type CitaMeta struct {
 type OpenAiCompletionChatResponse struct {
 	Message        *OpenAiMessageResponse `json:"message"`
 	ConversationID string                 `json:"conversation_id"`
-	Error          interface{}            `json:"error"`
+	Error          any                    `json:"error"`
 }
 
 type OpenAiMessageResponse struct {
 	ID         string          `json:"id"`
 	Author     *OpenAiAuthor   `json:"author"`
 	CreateTime float64         `json:"create_time"`
-	UpdateTime interface{}     `json:"update_time"`
+	UpdateTime any             `json:"update_time"`
 	Content    *OpenAiContent  `json:"content"`
 	Status     string          `json:"status"`
-	EndTurn    interface{}     `json:"end_turn"`
+	EndTurn    any             `json:"end_turn"`
 	Weight     float64         `json:"weight"`
 	Metadata   *OpenAiMetadata `json:"metadata"`
 	Recipient  string          `json:"recipient"`
@@ -227,16 +339,13 @@ type RequirementProofOfWork struct {
 	Seed       string `json:"seed,omitempty"`
 }
 
-func (c *CompletionRequest) ParsePromptText() string {
+func (c *ChatCompletionRequest) ParsePromptText() string {
 	prompt := ""
 	for k := range c.Messages {
 		message := c.Messages[k]
 		if message.Role == "user" {
-			switch text := message.Content.(type) {
-			case string:
-				prompt = text
-			default:
-				prompt = ""
+			if message.MultiContent == nil {
+				prompt = message.Content
 			}
 		}
 	}
@@ -244,7 +353,7 @@ func (c *CompletionRequest) ParsePromptText() string {
 }
 
 // 随机获取设置的coze bot id
-func (c *CompletionRequest) ParseCozeApiBotIdAndUser(r *fhblade.Context) (string, string, string) {
+func (c *ChatCompletionRequest) ParseCozeApiBotIdAndUser(r *fhblade.Context) (string, string, string) {
 	// 可能是用户自定义
 	if c.Coze != nil && c.Coze.Conversation != nil && c.Coze.Conversation.BotId != "" && c.Coze.Conversation.User != "" {
 		botId := c.Coze.Conversation.BotId
@@ -292,33 +401,11 @@ func (c *CompletionRequest) ParseCozeApiBotIdAndUser(r *fhblade.Context) (string
 	return botCfg.BotId, botCfg.User, token
 }
 
-// 随机获取设置的coze bot id
-func (c *CompletionRequest) ParseClaudeWebSessionKey(r *fhblade.Context, i int) (string, string, int) {
-	auth := r.Request().Header("Authorization")
-	if auth != "" {
-		if strings.HasPrefix(auth, "Bearer ") {
-			return strings.TrimPrefix(auth, "Bearer "), "", -1
-		}
-		return auth, "", -1
-	}
+type NullString string
 
-	claudeSessionCfgs := config.V().Claude.WebSessions
-	l := len(claudeSessionCfgs)
-	if l == 0 {
-		return "", "", -2
+func (n NullString) MarshalJSON() ([]byte, error) {
+	if n == "null" || n == "" {
+		return tools.StringToBytes("null"), nil
 	}
-	if i > l {
-		return "", "", -8
-	}
-	if l == 1 {
-		return claudeSessionCfgs[0].Val, claudeSessionCfgs[0].OrganizationId, 0
-	}
-
-	index := i
-	if index < 0 {
-		rand.Seed(time.Now().UnixNano())
-		index = rand.Intn(l)
-	}
-	claudeSessionCfg := claudeSessionCfgs[index]
-	return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, index
+	return tools.StringToBytes(`"` + string(n) + `"`), nil
 }

@@ -92,7 +92,16 @@ claude:
     # web chat cookie里面的sessionKey值
     web_sessions:
         -
+            # 自定义cookie标识，可通过头部传递x-api-id或请求传递index
+            id: 10001
             # cookie值
             val: sk-ant-sid01-anIGofTkl4RhcJYxxxVDWvwk6hB3CZigfH2Cw-ZbwI3AAA
             # 组织ID,可以不用设置
             organization_id:
+    # api密钥
+    api_keys:
+        -
+            # 密钥标识，可通过头部传递x-api-id
+            id: 10001
+            # 密钥
+            val: sk-ant-api03-xxxxpuVofdKzcHRrjg-XNvdMFsY43Ov1w-Q0MZqQAA

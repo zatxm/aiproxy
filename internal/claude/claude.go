@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -22,8 +23,12 @@ import (
 )
 
 const (
-	Provider  = "claude"
-	ThisModel = "claude-web"
+	Provider = "claude"
+
+	ApiMessagesUrl = "https://api.anthropic.com/v1/messages"
+
+	ClaudeTypeApi = "api"
+	ClaudeTypeWeb = "web"
 )
 
 var (
@@ -112,8 +117,25 @@ func ProxyWeb() func(*fhblade.Context) error {
 func ProxyApi() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		path := c.Get("path")
-		query := c.Request().RawQuery()
 
+		// api转openai api
+		if path == "openai" && c.Request().Method() == "POST" {
+			// 参数
+			var p types.ClaudeApiCompletionRequest
+			if err := c.ShouldBindJSON(&p); err != nil {
+				return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+					Error: &types.CError{
+						Message: "params error",
+						Type:    "invalid_request_error",
+						Code:    "invalid_parameter",
+					},
+				})
+			}
+			return apiToApi(c, p)
+		}
+
+		path = "/" + path
+		query := c.Request().RawQuery()
 		// 请求头
 		version := config.V().Claude.ApiVersion
 		c.Request().Req().Header = http.Header{
@@ -138,29 +160,66 @@ func ProxyApi() func(*fhblade.Context) error {
 	}
 }
 
-func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
+func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error {
+	// 走api转api
+	if p.Claude == nil || p.Claude.Type == ClaudeTypeApi {
+		var messages []*types.ClaudeApiMessage
+		for k := range p.Messages {
+			message := p.Messages[k]
+			if message.MultiContent == nil {
+				switch message.Role {
+				case "assistant":
+					messages = append(messages, &types.ClaudeApiMessage{
+						Role:    "assistant",
+						Content: message.Content,
+					})
+				case "user":
+					messages = append(messages, &types.ClaudeApiMessage{
+						Role:    "user",
+						Content: message.Content,
+					})
+				}
+			}
+		}
+		rq := &types.ClaudeApiCompletionRequest{
+			Model:     p.Model,
+			Messages:  messages,
+			MaxTokens: p.MaxTokens,
+		}
+		if &p.Temperature != nil {
+			rq.Temperature = p.Temperature
+		}
+		if &p.TopP != nil {
+			rq.TopP = p.TopP
+		}
+		return apiToApi(c, *rq)
+	}
+
+	// 剩下的走web转api
 	prompt := p.ParsePromptText()
 	if prompt == "" {
 		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "params error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
 	}
 
 	// 获取sessionKey
-	var reqIndex int = -3
-	if p.Claude != nil {
+	reqIndex := ""
+	if p.Claude.Index != "" {
 		reqIndex = p.Claude.Index
+	} else {
+		reqIndex = c.Request().Header("x-auth-id")
 	}
-	sessionKey, organizationID, index := p.ParseClaudeWebSessionKey(c, reqIndex)
+	sessionKey, organizationID, index := parseClaudeWebSessionKey(c, reqIndex)
 	if sessionKey == "" {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "key error",
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -173,7 +232,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -186,7 +245,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
 			Error: &types.CError{
 				Message: "Flushing not supported",
-				CType:   "invalid_systems_error",
+				Type:    "invalid_systems_error",
 				Code:    "systems_error",
 			},
 		})
@@ -209,7 +268,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -225,7 +284,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -242,7 +301,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 			return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 				Error: &types.CError{
 					Message: err.Error(),
-					CType:   "invalid_request_error",
+					Type:    "invalid_request_error",
 					Code:    "request_err",
 				},
 			})
@@ -266,7 +325,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -284,7 +343,7 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
-				CType:   "invalid_request_error",
+				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
@@ -325,21 +384,22 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 				break
 			}
 			if chatRes.Completion != "" {
-				var choices []*types.Choice
-				choices = append(choices, &types.Choice{
+				var choices []*types.ChatCompletionChoice
+				choices = append(choices, &types.ChatCompletionChoice{
 					Index: 0,
-					Message: &types.ResMessageOrDelta{
+					Message: &types.ChatCompletionMessage{
 						Role:    "assistant",
 						Content: chatRes.Completion,
 					},
 				})
-				outRes := &types.CompletionResponse{
-					ID:      chatRes.Id,
+				outRes := &types.ChatCompletionResponse{
+					ID:      chatRes.ID,
 					Choices: choices,
 					Created: now,
 					Model:   chatRes.Model,
 					Object:  "chat.completion.chunk",
 					Claude: &types.ClaudeCompletionResponse{
+						Type:  ClaudeTypeWeb,
 						Index: index,
 						Conversation: &types.ClaudeConversation{
 							Uuid: conversateionId,
@@ -358,11 +418,274 @@ func DoChatCompletions(c *fhblade.Context, p types.CompletionRequest) error {
 }
 
 // 通过api请求返回openai格式
-func apiToApi(c *fhblade.Context, p types.CompletionRequest) error {
+func apiToApi(c *fhblade.Context, p types.ClaudeApiCompletionRequest) error {
+	// 鉴权
+	index := c.Request().Header("x-auth-id")
+	auth, pIndex := parseAuth(c, index)
+	if auth == "" {
+		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "empty api key",
+				Type:    "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+
+	rw := c.Response().Rw()
+	flusher, ok := rw.(http.Flusher)
+	if !ok {
+		return c.JSONAndStatus(http.StatusNotImplemented, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "Flushing not supported",
+				Type:    "invalid_systems_error",
+				Code:    "systems_error",
+			},
+		})
+	}
+
+	// 请求
+	p.Stream = true
+	reqJson, _ := fhblade.Json.Marshal(p)
+	req, err := http.NewRequest(http.MethodPost, ApiMessagesUrl, bytes.NewReader(reqJson))
+	if err != nil {
+		fhblade.Log.Error("claude api2api send msg new req err",
+			zap.Error(err),
+			zap.ByteString("data", reqJson))
+		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				Type:    "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+
+	// 请求头
+	version := config.V().Claude.ApiVersion
+	req.Header = http.Header{
+		"x-api-key":         {auth},
+		"anthropic-version": {version},
+		"content-type":      {vars.ContentTypeJSON},
+	}
+	gClient := client.CPool.Get().(tlsClient.HttpClient)
+	resp, err := gClient.Do(req)
+	client.CPool.Put(gClient)
+	if err != nil {
+		fhblade.Log.Error("claude api2api send msg req err",
+			zap.Error(err),
+			zap.ByteString("data", reqJson))
+		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
+			Error: &types.CError{
+				Message: err.Error(),
+				Type:    "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+	defer resp.Body.Close()
+
+	// 处理错误返回
+	if resp.StatusCode != http.StatusOK {
+		resBody, err := tools.ReadAll(resp.Body)
+		if err != nil {
+			fhblade.Log.Error("claude api2api send msg res err",
+				zap.Error(err),
+				zap.String("httpCode", resp.Status))
+			return c.JSONAndStatus(resp.StatusCode, types.ErrorResponse{
+				Error: &types.CError{
+					Message: err.Error(),
+					Type:    "invalid_request_error",
+					Code:    "response_err",
+				},
+			})
+		}
+		apiRes := &types.ClaudeApiCompletionStreamResponse{}
+		if err := fhblade.Json.Unmarshal(resBody, &apiRes); err != nil {
+			fhblade.Log.Error("claude api2api send msg res go err",
+				zap.Error(err),
+				zap.ByteString("data", resBody),
+				zap.String("httpCode", resp.Status))
+			return c.JSONAndStatus(resp.StatusCode, types.ErrorResponse{
+				Error: &types.CError{
+					Message: err.Error(),
+					Type:    "invalid_request_error",
+					Code:    "response_err",
+				},
+			})
+		}
+		if apiRes.Error != nil {
+			return c.JSONAndStatus(resp.StatusCode, types.ErrorResponse{
+				Error: &types.CError{
+					Message: apiRes.Error.Message,
+					Type:    apiRes.Error.Type,
+					Code:    "response_err",
+				},
+			})
+		}
+		return c.JSONAndStatus(resp.StatusCode, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "http error",
+				Type:    "invalid_request_error",
+				Code:    "response_err",
+			},
+		})
+	}
+
+	// 处理响应
+	header := rw.Header()
+	header.Set("Content-Type", vars.ContentTypeStream)
+	header.Set("Cache-Control", "no-cache")
+	header.Set("Connection", "keep-alive")
+	header.Set("Access-Control-Allow-Origin", "*")
+	rw.WriteHeader(200)
+	reader := bufio.NewReader(resp.Body)
+	now := time.Now().Unix()
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err != io.EOF {
+				fhblade.Log.Error("claude api2api send msg res read err", zap.Error(err))
+			}
+			break
+		}
+		if strings.HasPrefix(line, "data: ") {
+			raw := strings.TrimPrefix(line, "data: ")
+			raw = strings.TrimSuffix(raw, "\n")
+			chatRes := &types.ClaudeApiCompletionStreamResponse{}
+			err := fhblade.Json.UnmarshalFromString(raw, &chatRes)
+			if err != nil {
+				fhblade.Log.Error("claude api2api wc deal data err",
+					zap.Error(err),
+					zap.String("data", line))
+				continue
+			}
+			if chatRes.Error != nil {
+				errJson, _ := fhblade.Json.Marshal(&types.CError{
+					Message: chatRes.Error.Message,
+					Type:    chatRes.Error.Type,
+					Code:    "response_err",
+				})
+				fmt.Fprintf(rw, "data: %s\n\n", errJson)
+				flusher.Flush()
+				break
+			}
+			if chatRes.Message != nil && len(chatRes.Message.Content) > 0 {
+				mg := ""
+				for k := range chatRes.Message.Content {
+					cc := chatRes.Message.Content[k]
+					if cc.Type == "text" && cc.Text != "" {
+						mg = cc.Text
+					} else if cc.Role == "assistant" && cc.Content != "" {
+						mg = cc.Content
+					}
+				}
+				if mg != "" {
+					var choices []*types.ChatCompletionChoice
+					choices = append(choices, &types.ChatCompletionChoice{
+						Index: 0,
+						Message: &types.ChatCompletionMessage{
+							Role:    "assistant",
+							Content: mg,
+						},
+					})
+					outRes := &types.ChatCompletionResponse{
+						ID:      chatRes.Message.ID,
+						Choices: choices,
+						Created: now,
+						Model:   chatRes.Message.Model,
+						Object:  "chat.completion.chunk",
+						Claude: &types.ClaudeCompletionResponse{
+							Type:  ClaudeTypeApi,
+							Index: pIndex,
+						},
+					}
+					outJson, _ := fhblade.Json.Marshal(outRes)
+					fmt.Fprintf(rw, "data: %s\n\n", outJson)
+					flusher.Flush()
+				}
+			}
+		}
+	}
+	fmt.Fprint(rw, "data: [DONE]\n\n")
+	flusher.Flush()
 	return nil
 }
 
-func parseOrganizationID(sessionKey string, index int) (string, error) {
+func parseAuth(c *fhblade.Context, index string) (string, string) {
+	auth := c.Request().Header("Authorization")
+	if auth != "" {
+		if strings.HasPrefix(auth, "Bearer ") {
+			return strings.TrimPrefix(auth, "Bearer "), ""
+		}
+		return auth, ""
+	}
+	auth = c.Request().Header("x-api-key")
+	if auth != "" {
+		return auth, ""
+	}
+	keys := config.V().Claude.ApiKeys
+	l := len(keys)
+	if l == 0 {
+		return "", ""
+	}
+	if index != "" {
+		for k := range keys {
+			v := keys[k]
+			if index == v.Id {
+				return v.Val, v.Id
+			}
+		}
+		return "", ""
+	}
+
+	if l == 1 {
+		return keys[0].Val, keys[0].Id
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	i := rand.Intn(l)
+	v := keys[i]
+	return v.Val, v.Id
+}
+
+// 随机获取设置的coze bot id
+func parseClaudeWebSessionKey(c *fhblade.Context, i string) (string, string, string) {
+	auth := c.Request().Header("Authorization")
+	if auth != "" {
+		if strings.HasPrefix(auth, "Bearer ") {
+			return strings.TrimPrefix(auth, "Bearer "), "", ""
+		}
+		return auth, "", ""
+	}
+
+	claudeSessionCfgs := config.V().Claude.WebSessions
+	l := len(claudeSessionCfgs)
+	if l == 0 {
+		return "", "", ""
+	}
+
+	if i != "" {
+		for k := range claudeSessionCfgs {
+			claudeSessionCfg := claudeSessionCfgs[k]
+			if i == claudeSessionCfg.Id {
+				return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, claudeSessionCfg.Id
+			}
+		}
+		return "", "", ""
+	}
+
+	if l == 1 {
+		return claudeSessionCfgs[0].Val, claudeSessionCfgs[0].OrganizationId, claudeSessionCfgs[0].Id
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	index := rand.Intn(l)
+	claudeSessionCfg := claudeSessionCfgs[index]
+	return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, claudeSessionCfg.Id
+}
+
+func parseOrganizationID(sessionKey, index string) (string, error) {
 	goUrl := "https://claude.ai/api/organizations"
 	req, err := http.NewRequest(http.MethodGet, goUrl, nil)
 	if err != nil {
@@ -402,10 +725,14 @@ func parseOrganizationID(sessionKey string, index int) (string, error) {
 		}
 		id = organization.Uuid
 	}
-	if id != "" && index >= 0 {
-		cfg := config.V().Claude.WebSessions[index]
-		if cfg.OrganizationId == "" {
-			cfg.OrganizationId = id
+	if id != "" && index != "" {
+		cfgs := config.V().Claude.WebSessions
+		for k := range cfgs {
+			cfg := cfgs[k]
+			if index == cfg.Id && cfg.OrganizationId == "" {
+				cfg.OrganizationId = id
+				break
+			}
 		}
 	}
 	return id, nil

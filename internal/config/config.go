@@ -9,15 +9,15 @@ import (
 var cfg *Config
 
 type Config struct {
-	Port      string    `yaml:"port"`
-	HttpsInfo httpsInfo `yaml:"https_info"`
-	HarsPath  string    `yaml:"hars_path"`
-	ProxyUrl  string    `yaml:"proxy_url"`
-	Gemini    gemini    `yaml:"google_gemini"`
-	Arkose    arkose    `yaml:"arkose"`
-	Bing      bing      `yaml:"bing"`
-	Coze      coze      `yaml:"coze"`
-	Claude    claude    `yaml:"claude"`
+	Port      string     `yaml:"port"`
+	HttpsInfo *httpsInfo `yaml:"https_info"`
+	HarsPath  string     `yaml:"hars_path"`
+	ProxyUrl  string     `yaml:"proxy_url"`
+	Gemini    *gemini    `yaml:"google_gemini"`
+	Arkose    *arkose    `yaml:"arkose"`
+	Bing      *bing      `yaml:"bing"`
+	Coze      *coze      `yaml:"coze"`
+	Claude    *claude    `yaml:"claude"`
 }
 
 type httpsInfo struct {
@@ -27,9 +27,15 @@ type httpsInfo struct {
 }
 
 type gemini struct {
-	ApiHost    string `yaml:"api_host"`
-	ApiKey     string `yaml:"api_key"`
-	ApiVersion string `yaml:"api_version"`
+	ProxyUrl string          `yaml:"proxy_url"`
+	Model    string          `yaml:"model"`
+	ApiKeys  []*geminiApiKey `yaml:"api_keys"`
+}
+
+type geminiApiKey struct {
+	ID      string `yaml:"id"`
+	Val     string `yaml:"val"`
+	Version string `yaml:"version"`
 }
 
 type arkose struct {
@@ -72,19 +78,20 @@ type cozeApiBot struct {
 }
 
 type claude struct {
+	ProxyUrl    string          `yaml:"proxy_url"`
 	ApiVersion  string          `yaml:"api_version"`
 	WebSessions []*websession   `yaml:"web_sessions"`
 	ApiKeys     []*claudeApiKey `yaml:"api_keys"`
 }
 
 type websession struct {
-	Id             string `yaml:"id"`
+	ID             string `yaml:"id"`
 	Val            string `yaml:"val"`
 	OrganizationId string `yaml:"organization_id"`
 }
 
 type claudeApiKey struct {
-	Id  string `yaml:"id"`
+	ID  string `yaml:"id"`
 	Val string `yaml:"val"`
 }
 
@@ -101,4 +108,20 @@ func Parse(filename string) (*Config, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+func ProxyUrl() string {
+	return cfg.ProxyUrl
+}
+
+func GeminiProxyUrl() string {
+	return cfg.Gemini.ProxyUrl
+}
+
+func BingProxyUrl() string {
+	return cfg.Bing.ProxyUrl
+}
+
+func ClaudeProxyUrl() string {
+	return cfg.Claude.ProxyUrl
 }

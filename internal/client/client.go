@@ -21,7 +21,7 @@ var (
 			if err != nil {
 				fhblade.Log.Error("ClientPool error", zap.Error(err))
 			}
-			proxyUrl := config.V().ProxyUrl
+			proxyUrl := config.ProxyUrl()
 			if proxyUrl != "" {
 				c.SetProxy(proxyUrl)
 			}
@@ -38,7 +38,7 @@ var (
 			if err != nil {
 				fhblade.Log.Error("ClientWithCookiePool error", zap.Error(err))
 			}
-			proxyUrl := config.V().ProxyUrl
+			proxyUrl := config.ProxyUrl()
 			if proxyUrl != "" {
 				c.SetProxy(proxyUrl)
 			}

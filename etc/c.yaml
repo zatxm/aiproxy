@@ -14,15 +14,22 @@ https_info :
 # har文件目录,强烈建议加上,为了获取arkose token
 hars_path : /anp/data/hars
 
-# 代理url,国外服务器部署就不用了
+# 代理url
 # proxy_url: http://127.0.0.1:1081
 
 # 谷歌gemini接口
 # https://makersuite.google.com/app/apikey申请
 google_gemini:
-    api_host: generativelanguage.googleapis.com
-    api_key: xxxxxxxxxxxx
-    api_version: v1beta
+    # 代理,没有取全局proxy_url
+    # proxy_url: http://127.0.0.1:1081
+    # 默认模型
+    model: gemini-pro
+    # 密钥
+    api_keys:
+        -
+            id: 10001
+            val: AIzaxxxxMuods
+            version: v1beta
 
 # arkose设置
 arkose:
@@ -39,6 +46,7 @@ arkose:
 # bing设置
 bing:
     # 部署国外vps不需要配置此代理,最好是干净IP否则会出验证码
+    # 代理,没有取全局proxy_url
     # proxy_url: http://127.0.0.1:1081
 
 # 相关配置
@@ -87,6 +95,8 @@ coze:
 
 # claude配置
 claude:
+    # 代理,没有取全局proxy_url
+    # proxy_url: http://127.0.0.1:1081
     # 接口版本
     api_version: 2023-06-01
     # web chat cookie里面的sessionKey值

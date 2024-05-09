@@ -39,7 +39,7 @@ type ClaudeOrganization struct {
 	ActiveFlags              []any          `json:"active_flags"`
 }
 
-type ClaudeChatWebResponse struct {
+type ClaudeWebChatCompletionResponse struct {
 	Type         string         `json:"type"`
 	ID           string         `json:"id"`
 	Completion   string         `json:"completion"`
@@ -167,4 +167,16 @@ type ClaudeApiDelta struct {
 	Text         string     `json:"text,omitempty"`
 	StopReason   NullString `json:"stop_reason,omitempty"`
 	StopSequence NullString `json:"stop_sequence,omitempty"`
+}
+
+type ClaudeCreateConversationRequest struct {
+	Uuid string `json:"uuid"`
+	Name string `json:"name"`
+}
+
+type ClaudeWebChatCompletionRequest struct {
+	Prompt      string        `json:"prompt"`
+	Timezone    string        `json:"timezone"`
+	attachments []interface{} `json:"attachments"`
+	files       []interface{} `json:"files"`
 }

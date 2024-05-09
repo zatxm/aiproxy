@@ -5,8 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net"
-	"net/url"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -24,166 +23,89 @@ import (
 )
 
 const (
-	Provider  = "gemini"
-	ThisModel = "gemini-pro"
+	Provider     = "gemini"
+	ApiHost      = "generativelanguage.googleapis.com"
+	ApiUrl       = "https://generativelanguage.googleapis.com"
+	ApiVersion   = "v1beta"
+	DefaultModel = "gemini-pro"
 )
 
 var (
-	ApiUrl   = ""
 	startTag = []byte(`            "text": "`)
 	endTag   = []byte{34, 10}
 )
 
-// 流式响应模型对话，省略部分不常用参数
-type streamGenerateContent struct {
-	// 必需,当前与模型对话的内容
-	// 对于单轮查询此值为单个实例
-	// 对于多轮查询，此字段为重复字段，包含对话记录和最新请求
-	Contents []*scontent `json:"contents"`
-	// 可选,开发者集系统说明,目前仅支持文字
-	SystemInstruction []*scontent `json:"systemInstruction,omitempty"`
-	// 可选,用于模型生成和输出的配置选项
-	GenerationConfig *generationConfig `json:"generationConfig,omitempty"`
-}
-
-type scontent struct {
-	Parts []*spart `json:"parts"`
-	Role  string   `json:"role"`
-}
-
-// Union field data can be only one of the following
-type spart struct {
-	// 文本
-	Text string `json:"text,omitempty"`
-	// 原始媒体字节
-	MimeType string `json:"mimeType,omitempty"` //image/png等
-	Data     string `json:"data,omitempty"`     //媒体格式的原始字节,使用base64编码的字符串
-	// 基于URI的数据
-	UriMimeType string `json:"mimeType,omitempty"` //可选,源数据的IANA标准MIME类型
-	FileUri     string `json:"fileUri,omitempty"`  //必需,URI值
-}
-
-type generationConfig struct {
-	// 将停止生成输出的字符序列集(最多5个)
-	// 如果指定，API将在第一次出现停止序列时停止
-	// 该停止序列不会包含在响应中
-	StopSequences []string `json:"stopSequences,omitempty"`
-	// 生成的候选文本的输出响应MIME类型
-	// 支持的mimetype：text/plain(默认)文本输出,application/json JSON响应
-	ResponseMimeType string `json:"responseMimeType,omitempty"`
-	// 要返回的已生成响应数
-	// 目前此值只能设置为1或者未设置默认为1
-	CandidateCount int `json:"candidateCount,omitempty"`
-	// 候选内容中包含的词元数量上限
-	// 默认值因模型而异，请参阅getModel函数返回的Model的Model.output_token_limit属性
-	MaxOutputTokens int `json:"maxOutputTokens,omitempty"`
-	// 控制输出的随机性
-	// 默认值因模型而异，请参阅getModel函数返回的Model的Model.temperature属性
-	// 值的范围为[0.0, 2.0]
-	Temperature float64 `json:"temperature,omitempty"`
-	// 采样时要考虑的词元的最大累积概率
-	// 该模型使用Top-k和核采样的组合
-	// 词元根据其分配的概率进行排序，因此只考虑可能性最大的词元
-	// Top-k采样会直接限制要考虑的最大词元数量，而Nucleus采样则会根据累计概率限制词元数量
-	// 默认值因模型而异，请参阅getModel函数返回的Model的Model.top_p属性
-	TopP float64 `json:"topP,omitempty"`
-	// 采样时要考虑的词元数量上限
-	// 模型使用核采样或合并Top-k和核采样,Top-k采样考虑topK集合中概率最高的词元
-	// 通过核采样运行的模型不允许TopK设置
-	// 默认值因模型而异,请参阅getModel函数返回的Model的Model.top_k属性
-	// Model中的topK字段为空表示模型未应用Top-k采样,不允许对请求设置topK
-	TopK int `json:"topK,omitempty"`
-}
-
+// 转发
 func Do() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
-		cfg := config.V()
-		path := "/" + cfg.Gemini.ApiVersion + "/" + c.Get("path")
-		urlParse := c.Request().Req().URL
-		q := urlParse.RawQuery
-		var queryBuilder strings.Builder
-		if q == "" {
-			queryBuilder.WriteString("key=")
-			queryBuilder.WriteString(cfg.Gemini.ApiKey)
-		} else {
-			queryBuilder.WriteString(q)
-			urlQuery := urlParse.Query()
-			key := urlQuery.Get("key")
-			if key == "" {
-				queryBuilder.WriteString("&")
-				queryBuilder.WriteString("key=")
-				queryBuilder.WriteString(cfg.Gemini.ApiKey)
+		path := "/" + c.Get("path")
+		// api转openai api
+		if path == "/openai" && c.Request().Method() == "POST" {
+			// 参数
+			var p types.StreamGenerateContent
+			if err := c.ShouldBindJSON(&p); err != nil {
+				return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+					Error: &types.CError{
+						Message: "params error",
+						Type:    "invalid_request_error",
+						Code:    "invalid_parameter",
+					},
+				})
 			}
+			return apiToApi(c, p, c.Request().Header("x-auth-id"))
 		}
-		query := queryBuilder.String()
-		transport := &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout:   360 * time.Second,
-				KeepAlive: 360 * time.Second,
-				DualStack: true,
-			}).DialContext,
+		query := c.Request().RawQuery()
+		// 请求头
+		c.Request().Req().Header = http.Header{
+			"content-type": {vars.ContentTypeJSON},
 		}
-		if cfg.ProxyUrl != "" {
-			transport.Proxy = func(req *http.Request) (*url.URL, error) {
-				return url.Parse(cfg.ProxyUrl)
-			}
+		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		proxyUrl := config.GeminiProxyUrl()
+		if proxyUrl != "" {
+			gClient.SetProxy(proxyUrl)
 		}
+		defer client.CPool.Put(gClient)
 		goProxy := httputil.ReverseProxy{
 			Director: func(req *http.Request) {
-				req.Host = cfg.Gemini.ApiHost
-				req.URL.Host = cfg.Gemini.ApiHost
+				req.Host = ApiHost
+				req.URL.Host = ApiHost
 				req.URL.Scheme = "https"
 				req.URL.Path = path
 				req.URL.RawQuery = query
 			},
-			Transport: transport,
+			Transport: gClient.TClient().Transport,
 		}
 		goProxy.ServeHTTP(c.Response().Rw(), c.Request().Req())
 		return nil
 	}
 }
 
-// 目前仅支持文字对话
-func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error {
-	var contents []*scontent
-	for k := range p.Messages {
-		message := p.Messages[k]
-		if message.MultiContent == nil {
-			parts := []*spart{&spart{Text: message.Content}}
-			switch message.Role {
-			case "assistant":
-				contents = append(contents, &scontent{Parts: parts, Role: "model"})
-			case "user":
-				contents = append(contents, &scontent{Parts: parts, Role: "user"})
-			}
+// 通过api请求返回openai格式
+func apiToApi(c *fhblade.Context, p types.StreamGenerateContent, idSign string) error {
+	model := p.Model
+	if model == "" {
+		model = config.V().Gemini.Model
+		if model == "" {
+			model = DefaultModel
 		}
 	}
-	if len(contents) == 0 {
-		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+	goUrl, index := parseApiUrl(c, model, idSign)
+	if goUrl == "" {
+		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
-				Message: "params error",
+				Message: "key error",
 				Type:    "invalid_request_error",
 				Code:    "request_err",
 			},
 		})
 	}
-	goReq := &streamGenerateContent{
-		Contents:         contents,
-		GenerationConfig: &generationConfig{},
-	}
-	if &p.MaxTokens != nil {
-		goReq.GenerationConfig.MaxOutputTokens = p.MaxTokens
-	}
-
-	// chat
-	reqJson, _ := fhblade.Json.MarshalToString(goReq)
-	apiUrl := parseApiUrl(c)
-	req, err := http.NewRequest(http.MethodPost, apiUrl, strings.NewReader(reqJson))
+	reqJson, _ := fhblade.Json.Marshal(p)
+	req, err := http.NewRequest(http.MethodPost, goUrl, bytes.NewReader(reqJson))
 	if err != nil {
 		fhblade.Log.Error("gemini v1 send msg new req err",
 			zap.Error(err),
-			zap.String("url", apiUrl),
-			zap.String("data", reqJson))
+			zap.String("url", goUrl),
+			zap.ByteString("data", reqJson))
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
@@ -194,16 +116,19 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 	}
 	req.Header = http.Header{
 		"content-type": {vars.ContentTypeJSON},
-		"user-agent":   {vars.UserAgent},
 	}
 	gClient := client.CPool.Get().(tlsClient.HttpClient)
+	proxyUrl := config.GeminiProxyUrl()
+	if proxyUrl != "" {
+		gClient.SetProxy(proxyUrl)
+	}
 	resp, err := gClient.Do(req)
 	if err != nil {
 		client.CPool.Put(gClient)
 		fhblade.Log.Error("gemini v1 send msg req err",
 			zap.Error(err),
-			zap.String("url", apiUrl),
-			zap.String("data", reqJson))
+			zap.String("url", goUrl),
+			zap.ByteString("data", reqJson))
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
 				Message: err.Error(),
@@ -258,8 +183,12 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 				ID:      id,
 				Choices: choices,
 				Created: now,
-				Model:   ThisModel,
+				Model:   model,
 				Object:  "chat.completion.chunk",
+				Gemini: &types.GeminiCompletionResponse{
+					Type:  "api",
+					Index: index,
+				},
 			}
 			outJson, _ := fhblade.Json.Marshal(outRes)
 			fmt.Fprintf(rw, "data: %s\n\n", outJson)
@@ -271,32 +200,97 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 	return nil
 }
 
-func parseApiUrl(c *fhblade.Context) string {
-	// 优先获取用户传递
+// 目前仅支持文字对话
+func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error {
+	var contents []*types.GeminiContent
+	for k := range p.Messages {
+		message := p.Messages[k]
+		if message.MultiContent == nil {
+			parts := []*types.GeminiPart{&types.GeminiPart{Text: message.Content}}
+			switch message.Role {
+			case "assistant":
+				contents = append(contents, &types.GeminiContent{Parts: parts, Role: "model"})
+			case "user":
+				contents = append(contents, &types.GeminiContent{Parts: parts, Role: "user"})
+			}
+		}
+	}
+	if len(contents) == 0 {
+		return c.JSONAndStatus(http.StatusBadRequest, types.ErrorResponse{
+			Error: &types.CError{
+				Message: "params error",
+				Type:    "invalid_request_error",
+				Code:    "request_err",
+			},
+		})
+	}
+	goReq := &types.StreamGenerateContent{
+		Contents:         contents,
+		GenerationConfig: &types.GenerationConfig{},
+	}
+	if &p.MaxTokens != nil {
+		goReq.GenerationConfig.MaxOutputTokens = p.MaxTokens
+	}
+	reqIndex := ""
+	if p.Gemini != nil && p.Gemini.Index != "" {
+		reqIndex = p.Gemini.Index
+	} else {
+		reqIndex = c.Request().Header("x-auth-id")
+	}
+	goReq.Model = p.Model
+	return apiToApi(c, *goReq, reqIndex)
+}
+
+func parseApiUrl(c *fhblade.Context, model, idSign string) (string, string) {
+	auth, version, index := parseAuth(c, idSign)
+	if auth == "" {
+		return "", ""
+	}
+	var apiUrlBuild strings.Builder
+	apiUrlBuild.WriteString(ApiUrl)
+	apiUrlBuild.WriteString("/")
+	apiUrlBuild.WriteString(version)
+	apiUrlBuild.WriteString("/models/")
+	apiUrlBuild.WriteString(model)
+	apiUrlBuild.WriteString(":streamGenerateContent")
+	apiUrlBuild.WriteString("?key=")
+	apiUrlBuild.WriteString(auth)
+	return apiUrlBuild.String(), index
+}
+
+func parseAuth(c *fhblade.Context, index string) (string, string, string) {
 	auth := c.Request().Header("Authorization")
 	if auth != "" {
-		geminiCfg := config.V().Gemini
-		var apiUrlBuild strings.Builder
-		apiUrlBuild.WriteString("https://")
-		apiUrlBuild.WriteString(geminiCfg.ApiHost)
-		apiUrlBuild.WriteString("/")
-		apiUrlBuild.WriteString(geminiCfg.ApiVersion)
-		apiUrlBuild.WriteString("/models/gemini-pro:streamGenerateContent")
-		apiUrlBuild.WriteString("?key=")
-		apiUrlBuild.WriteString(strings.TrimPrefix(auth, "Bearer "))
-		return apiUrlBuild.String()
+		version := c.Request().Header("x-version")
+		if version == "" {
+			version = ApiVersion
+		}
+		if strings.HasPrefix(auth, "Bearer ") {
+			return strings.TrimPrefix(auth, "Bearer "), version, ""
+		}
+		return auth, version, ""
 	}
-	if ApiUrl == "" {
-		geminiCfg := config.V().Gemini
-		var apiUrlBuild strings.Builder
-		apiUrlBuild.WriteString("https://")
-		apiUrlBuild.WriteString(geminiCfg.ApiHost)
-		apiUrlBuild.WriteString("/")
-		apiUrlBuild.WriteString(geminiCfg.ApiVersion)
-		apiUrlBuild.WriteString("/models/gemini-pro:streamGenerateContent")
-		apiUrlBuild.WriteString("?key=")
-		apiUrlBuild.WriteString(geminiCfg.ApiKey)
-		ApiUrl = apiUrlBuild.String()
+	keys := config.V().Gemini.ApiKeys
+	l := len(keys)
+	if l == 0 {
+		return "", "", ""
 	}
-	return ApiUrl
+	if index != "" {
+		for k := range keys {
+			v := keys[k]
+			if index == v.ID {
+				return v.Val, v.Version, v.ID
+			}
+		}
+		return "", "", ""
+	}
+
+	if l == 1 {
+		return keys[0].Val, keys[0].Version, keys[0].ID
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	i := rand.Intn(l)
+	v := keys[i]
+	return v.Val, v.Version, v.ID
 }

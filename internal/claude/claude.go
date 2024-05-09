@@ -47,23 +47,6 @@ var (
 	}
 )
 
-type createConversationParams struct {
-	Uuid string `json:"uuid"`
-	Name string `json:"name"`
-}
-
-type sendMessageParams struct {
-	ID      string         `json:"id,omitempty"`
-	Message *messageParams `json:"message" binding:"required"`
-}
-
-type messageParams struct {
-	Prompt      string        `json:"prompt"`
-	Timezone    string        `json:"timezone"`
-	attachments []interface{} `json:"attachments"`
-	files       []interface{} `json:"files"`
-}
-
 // 转发web请求
 func ProxyWeb() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
@@ -97,6 +80,10 @@ func ProxyWeb() func(*fhblade.Context) error {
 			}
 		}
 		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		proxyUrl := config.ClaudeProxyUrl()
+		if proxyUrl != "" {
+			gClient.SetProxy(proxyUrl)
+		}
 		defer client.CPool.Put(gClient)
 		goProxy := httputil.ReverseProxy{
 			Director: func(req *http.Request) {
@@ -144,6 +131,10 @@ func ProxyApi() func(*fhblade.Context) error {
 			"content-type":      {vars.ContentTypeJSON},
 		}
 		gClient := client.CPool.Get().(tlsClient.HttpClient)
+		proxyUrl := config.ClaudeProxyUrl()
+		if proxyUrl != "" {
+			gClient.SetProxy(proxyUrl)
+		}
 		defer client.CPool.Put(gClient)
 		goProxy := httputil.ReverseProxy{
 			Director: func(req *http.Request) {
@@ -257,9 +248,13 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 		conversateionId = p.Claude.Conversation.Uuid
 	}
 	gClient := client.CcPool.Get().(tlsClient.HttpClient)
+	proxyUrl := config.ClaudeProxyUrl()
+	if proxyUrl != "" {
+		gClient.SetProxy(proxyUrl)
+	}
 	if conversateionId == "" {
 		goUrl := "https://claude.ai/api/organizations/" + organizationID + "/chat_conversations"
-		rq := &createConversationParams{Uuid: uuid.NewString()}
+		rq := &types.ClaudeCreateConversationRequest{Uuid: uuid.NewString()}
 		reqJson, _ := fhblade.Json.Marshal(rq)
 		req, err := http.NewRequest(http.MethodPost, goUrl, bytes.NewReader(reqJson))
 		if err != nil {
@@ -311,7 +306,7 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 
 	// 提问
 	askUrl := "https://claude.ai/api/organizations/" + organizationID + "/chat_conversations/" + conversateionId + "/completion"
-	rq := &messageParams{
+	rq := &types.ClaudeWebChatCompletionRequest{
 		Prompt:   prompt,
 		Timezone: defaultTimezone,
 	}
@@ -370,7 +365,7 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 		if strings.HasPrefix(line, "data: ") {
 			raw := strings.TrimPrefix(line, "data: ")
 			raw = strings.TrimSuffix(raw, "\n")
-			chatRes := &types.ClaudeChatWebResponse{}
+			chatRes := &types.ClaudeWebChatCompletionResponse{}
 			err := fhblade.Json.UnmarshalFromString(raw, &chatRes)
 			if err != nil {
 				fhblade.Log.Error("claude web wc deal data err",
@@ -469,6 +464,10 @@ func apiToApi(c *fhblade.Context, p types.ClaudeApiCompletionRequest) error {
 		"content-type":      {vars.ContentTypeJSON},
 	}
 	gClient := client.CPool.Get().(tlsClient.HttpClient)
+	proxyUrl := config.ClaudeProxyUrl()
+	if proxyUrl != "" {
+		gClient.SetProxy(proxyUrl)
+	}
 	resp, err := gClient.Do(req)
 	client.CPool.Put(gClient)
 	if err != nil {
@@ -632,21 +631,21 @@ func parseAuth(c *fhblade.Context, index string) (string, string) {
 	if index != "" {
 		for k := range keys {
 			v := keys[k]
-			if index == v.Id {
-				return v.Val, v.Id
+			if index == v.ID {
+				return v.Val, v.ID
 			}
 		}
 		return "", ""
 	}
 
 	if l == 1 {
-		return keys[0].Val, keys[0].Id
+		return keys[0].Val, keys[0].ID
 	}
 
 	rand.Seed(time.Now().UnixNano())
 	i := rand.Intn(l)
 	v := keys[i]
-	return v.Val, v.Id
+	return v.Val, v.ID
 }
 
 // 随机获取设置的coze bot id
@@ -668,21 +667,21 @@ func parseClaudeWebSessionKey(c *fhblade.Context, i string) (string, string, str
 	if i != "" {
 		for k := range claudeSessionCfgs {
 			claudeSessionCfg := claudeSessionCfgs[k]
-			if i == claudeSessionCfg.Id {
-				return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, claudeSessionCfg.Id
+			if i == claudeSessionCfg.ID {
+				return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, claudeSessionCfg.ID
 			}
 		}
 		return "", "", ""
 	}
 
 	if l == 1 {
-		return claudeSessionCfgs[0].Val, claudeSessionCfgs[0].OrganizationId, claudeSessionCfgs[0].Id
+		return claudeSessionCfgs[0].Val, claudeSessionCfgs[0].OrganizationId, claudeSessionCfgs[0].ID
 	}
 
 	rand.Seed(time.Now().UnixNano())
 	index := rand.Intn(l)
 	claudeSessionCfg := claudeSessionCfgs[index]
-	return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, claudeSessionCfg.Id
+	return claudeSessionCfg.Val, claudeSessionCfg.OrganizationId, claudeSessionCfg.ID
 }
 
 func parseOrganizationID(sessionKey, index string) (string, error) {
@@ -697,6 +696,10 @@ func parseOrganizationID(sessionKey, index string) (string, error) {
 	req.Header.Set("Cookie", "sessionKey="+sessionKey)
 	req.Header.Set("referer", "https://claude.ai/chats")
 	gClient := client.CPool.Get().(tlsClient.HttpClient)
+	proxyUrl := config.ClaudeProxyUrl()
+	if proxyUrl != "" {
+		gClient.SetProxy(proxyUrl)
+	}
 	resp, err := gClient.Do(req)
 	client.CPool.Put(gClient)
 	if err != nil {
@@ -729,7 +732,7 @@ func parseOrganizationID(sessionKey, index string) (string, error) {
 		cfgs := config.V().Claude.WebSessions
 		for k := range cfgs {
 			cfg := cfgs[k]
-			if index == cfg.Id && cfg.OrganizationId == "" {
+			if index == cfg.ID && cfg.OrganizationId == "" {
 				cfg.OrganizationId = id
 				break
 			}

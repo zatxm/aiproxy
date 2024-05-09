@@ -35,6 +35,7 @@ type ChatCompletionRequest struct {
 	User             string                        `json:"user,omitempty"`
 	StreamOptions    *StreamOptions                `json:"stream_options,omitempty"`
 	Provider         string                        `json:"provider,omitempty"`
+	Gemini           *GeminiCompletionRequest      `json:"gemini,omitempty"`
 	OpenAi           *OpenAiCompletionRequest      `json:"openai,omitempty"`
 	Bing             *BingCompletionRequest        `json:"bing,omitempty"`
 	Coze             *CozeCompletionRequest        `json:"coze,omitempty"`
@@ -170,6 +171,7 @@ type ChatCompletionResponse struct {
 	SystemFingerprint string                    `json:"system_fingerprint"`
 	Object            string                    `json:"object"`
 	Usage             *Usage                    `json:"usage,omitempty"`
+	Gemini            *GeminiCompletionResponse `json:"gemini,omitempty"`
 	OpenAi            *OpenAiConversation       `json:"openai,omitempty"`
 	Bing              *BingConversation         `json:"bing,omitempty"`
 	Coze              *CozeConversation         `json:"coze,omitempty"`

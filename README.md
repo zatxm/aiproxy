@@ -88,11 +88,14 @@ provider参数说明如下：
   额外参数：
 
   ```
-  "openai": {
-      "conversation": {
-          "conversation_id": "697b28e8-e228-4abb-b356-c8ccdccf82f3",
-          "parent_message_id": "dd6d9561-bebe-42da-91c6-f8fde6b105d9",
-          "last_message_id": "9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
+  {
+      ...
+      "openai": {
+          "conversation": {
+              "conversation_id": "697b28e8-e228-4abb-b356-c8ccdccf82f3",
+              "parent_message_id": "dd6d9561-bebe-42da-91c6-f8fde6b105d9",
+              "last_message_id": "9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
+          }
       }
   }
   ```
@@ -104,26 +107,44 @@ provider参数说明如下：
   额外参数
 
   ```
-  "gemini": {
-      "type": "api",
-      "index": "100001"
+  {
+      ...
+      "gemini": {
+          "type": "api",
+          "index": "100001"
+      }
   }
   ```
 
-  * index为密钥ID,优先级高于x-auth-id  
+  * index为密钥ID,头部x-auth-id优先级高于index
   * 如果传递Authorization鉴权，还可以传递x-version指定api版本，默认v1beta
+
+  额外返回：
+
+  ```
+  {
+      ...
+      "gemini": {
+          "type": "api",
+          "index": "100001"
+      }
+  }
+  ```
 
 * **bing**：微软bing chat,有IP要求，不符合会出验证码
 
   额外参数：
 
   ```
-  "bing": {
-      "conversation": {
-          "conversationId": "xxxx",
-          "clientId": "xxxx",
-          "Signature": "xxx",
-          "TraceId": "xxx"
+  {
+      ...
+      "bing": {
+          "conversation": {
+              "conversationId": "xxxx",
+              "clientId": "xxxx",
+              "Signature": "xxx",
+              "TraceId": "xxx"
+          }
       }
   }
   ```
@@ -133,12 +154,15 @@ provider参数说明如下：
   额外返回：
 
   ```
-  "bing": {
-      "conversationId": "xxxx",
-      "clientId": "xxxx",
-      "Signature": "xxx",
-      "TraceId": "xxx"
+  {
       ...
+      "bing": {
+          "conversationId": "xxxx",
+          "clientId": "xxxx",
+          "Signature": "xxx",
+          "TraceId": "xxx"
+          ...
+      }
   }
   ```
 
@@ -148,20 +172,40 @@ provider参数说明如下：
   额外参数
 
   ```
-  "claude": {
-      "type": "web",
-      "index": "100001",
-      "conversation": {
-          "uuid": "xxxx"
-          "model" "xxx",
-          ...
+  {
+      ...
+      "claude": {
+          "type": "web",
+          "index": "100001",
+          "conversation": {
+              "uuid": "xxxx"
+              "model" "xxx",
+              ...
+          }
       }
   }
   ```
 
-  * 其中，如果没传claude或者传type为api，走claude api接口，其他情况走web  
-  * index为密钥ID,优先级高于x-auth-id  
+  * 其中，如果没传claude或者传type为api，走claude api接口，其他情况走web
+  * index为密钥ID，头部x-auth-id优先级高于index
   * conversation，web专用，表示在同一会话基础上进行对话，此值在任一对话通信后会返回
+
+  额外返回：
+
+  ```
+  {
+      ...
+      "claude": {
+          "type": "web",
+          "index": "100001",
+          "conversation": {
+              "uuid": "xxxx"
+              "model" "xxx",
+              ...
+          }
+      }
+  }
+  ```
 
 * **不传或不支持**的provider默认走openai的v1/chat/completions接口
 

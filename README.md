@@ -85,84 +85,92 @@ provider参数说明如下：
 
 * **openai-chat-web**：openai web chat,支持免登录(有IP要求，一般美国IP就行)
 
-额外参数：
+  额外参数：
 
-```
-"openai": {
-    "conversation": {
-        "conversation_id":"697b28e8-e228-4abb-b356-c8ccdccf82f3",
-        "parent_message_id":"dd6d9561-bebe-42da-91c6-f8fde6b105d9",
-        "last_message_id":"9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
-    }
-}
-```
+  ```
+  "openai": {
+      "conversation": {
+          "conversation_id":"697b28e8-e228-4abb-b356-c8ccdccf82f3",
+          "parent_message_id":"dd6d9561-bebe-42da-91c6-f8fde6b105d9",
+          "last_message_id":"9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
+      }
+  }
+  ```
 
-表示在同一会话基础上进行对话，此值在任一对话通信后会返回
+  > 表示在同一会话基础上进行对话，此值在任一对话通信后会返回
 
 * **gemini**：谷歌gemini pro
+
+  额外参数
+
+  ```
+  "gemini": {
+      "type": "api",
+      "index": "100001"
+  }
+  ```
+
+  > index为密钥ID,优先级高于x-auth-id  
+  > 如果传递Authorization鉴权，还可以传递x-version指定api版本，默认v1beta
+
 * **bing**：微软bing chat,有IP要求，不符合会出验证码
 * **coze**：支持discord和api,走api时model传coze-api
 * **claude**：目前支持claude web chat,后续加入api to api
 
-额外参数
+  额外参数
 
-```
-"claude": {
-    "type": "web",
-    "index": "100001",
-    "conversation": {
-        "uuid": "xxxx"
-        "model" "xxx",
-        ...
-    }
-}
-```
+  ```
+  "claude": {
+      "type": "web",
+      "index": "100001",
+      "conversation": {
+          "uuid": "xxxx"
+          "model" "xxx",
+          ...
+      }
+  }
+  ```
 
-* 其中，如果没传claude或者传type为api，走claude api接口，其他情况走web
-* index为密钥ID,优先级高于x-auth-id
-* conversation，web专用，表示在同一会话基础上进行对话，此值在任一对话通信后会返回
-
-```
-"openai": {
-    "conversation": {
-        "conversation_id":"697b28e8-e228-4abb-b356-c8ccdccf82f3",
-        "parent_message_id":"dd6d9561-bebe-42da-91c6-f8fde6b105d9",
-        "last_message_id":"9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
-    }
-}
-```
+  > 其中，如果没传claude或者传type为api，走claude api接口，其他情况走web  
+  > index为密钥ID,优先级高于x-auth-id  
+  > conversation，web专用，表示在同一会话基础上进行对话，此值在任一对话通信后会返回
 
 * **不传或不支持**的provider默认走openai的v1/chat/completions接口
 
-**2. openai web转api**
+**2. openai相关接口**
 
-* post /backend-anon/web2api
-* post /backend-api/web2api
+* post /backend-anon/web2api，web转api
+* post /backend-api/web2api，web转api
 
-```
-通信请求数据如下：
-{
-    "action":"next",
-    "messages":[{
-        "id":"aaa2e4da-d561-458e-b731-e3390c08d8f7",
-        "author":{"role":"user"},
-        "content":{
-            "content_type":"text",
-            "parts":["你是谁？"]
-        },
-        "metadata":{}
-    }],
-    "parent_message_id":"aaa18093-c3ec-4528-bb92-750c0f85918f",
-    "model":"text-davinci-002-render-sha",
-    "timezone_offset_min":-480,
-    "history_and_training_disabled":false,
-    "conversation_mode":{"kind":"primary_assistant"},
-    "websocket_request_id":"bf740f5f-2335-4903-94df-4003819fdade"
-}
-```
+  ```
+  通信请求数据如下：
+  {
+      "action":"next",
+      "messages":[{
+          "id":"aaa2e4da-d561-458e-b731-e3390c08d8f7",
+          "author":{"role":"user"},
+          "content":{
+              "content_type":"text",
+              "parts":["你是谁？"]
+          },
+          "metadata":{}
+      }],
+      "parent_message_id":"aaa18093-c3ec-4528-bb92-750c0f85918f",
+      "model":"text-davinci-002-render-sha",
+      "timezone_offset_min":-480,
+      "history_and_training_disabled":false,
+      "conversation_mode":{"kind":"primary_assistant"},
+      "websocket_request_id":"bf740f5f-2335-4903-94df-4003819fdade"
+  }
+  ```
 
 **3. claude相关接口**
 
 * /claude/web/*path，转发web端，path参数为转发的path，下同
 * /claude/api/*path，转发api
 * post /claude/api/openai，api转openai api格式，此接口支持头部传递Authorization、x-api-key、x-auth-id鉴权(按此排序依次优先获取)，不传随机获取配置密钥
+
+**4. gemini相关接口**
+
+* /gemini/*path，转发api，path参数为转发的path
+* post /gemini/openai，api转openai api格式，此接口支持头部传递Authorization、x-auth-id鉴权(按此排序依次优先获取)，不传随机获取配置密钥

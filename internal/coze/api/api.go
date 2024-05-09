@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -192,7 +193,7 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 			},
 		})
 	}
-	botId, user, token := p.ParseCozeApiBotIdAndUser(c)
+	botId, user, token := parseCozeApiBotIdAndUser(c, p)
 	if botId == "" || user == "" || token == "" {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
@@ -335,4 +336,71 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 	flusher.Flush()
 
 	return nil
+}
+
+// 随机获取设置的coze bot id
+func parseCozeApiBotIdAndUser(c *fhblade.Context, p types.ChatCompletionRequest) (string, string, string) {
+	// 优先取body传值再取header
+	token := c.Request().Header("Authorization")
+	user := c.Request().Header("x-auth-id")
+	botId := c.Request().Header("x-bot-id")
+	if p.Coze != nil && p.Coze.Conversation != nil && p.Coze.Conversation.BotId != "" && p.Coze.Conversation.User != "" {
+		botId = p.Coze.Conversation.BotId
+		user = p.Coze.Conversation.User
+	}
+
+	// 全部有值就返回了
+	if token != "" && user != "" && botId != "" {
+		if strings.HasPrefix(token, "Bearer ") {
+			token = strings.TrimPrefix(token, "Bearer ")
+		}
+		return botId, user, token
+	}
+
+	// 根据user和botId查找配置
+	if user != "" && botId != "" {
+		cozeApiChatCfg := config.V().Coze.ApiChat
+		botCfgs := cozeApiChatCfg.Bots
+		exist := false
+		for k := range botCfgs {
+			botCfg := botCfgs[k]
+			if botId == botCfg.BotId && user == botCfg.User {
+				token = botCfg.AccessToken
+				exist = true
+				break
+			}
+		}
+		if !exist {
+			return "", "", "" //不匹配
+		}
+		if token == "" {
+			token = cozeApiChatCfg.AccessToken
+		}
+		return botId, user, token
+	}
+
+	// 随机获取
+	cozeApiChatCfg := config.V().Coze.ApiChat
+	botCfgs := cozeApiChatCfg.Bots
+	l := len(botCfgs)
+	if l == 0 {
+		return "", "", ""
+	}
+	if l == 1 {
+		token = botCfgs[0].AccessToken
+		if token == "" {
+			token = cozeApiChatCfg.AccessToken
+		}
+		return botCfgs[0].BotId, botCfgs[0].User, token
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	index := rand.Intn(l)
+	botCfg := botCfgs[index]
+	token = botCfg.AccessToken
+	if token == "" {
+		token = cozeApiChatCfg.AccessToken
+	}
+
+	return botCfg.BotId, botCfg.User, token
 }

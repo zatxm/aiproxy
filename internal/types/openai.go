@@ -2,10 +2,7 @@ package types
 
 import (
 	"errors"
-	"math/rand"
-	"time"
 
-	"github.com/zatxm/any-proxy/internal/config"
 	"github.com/zatxm/fhblade"
 	"github.com/zatxm/fhblade/tools"
 )
@@ -352,55 +349,6 @@ func (c *ChatCompletionRequest) ParsePromptText() string {
 		}
 	}
 	return prompt
-}
-
-// 随机获取设置的coze bot id
-func (c *ChatCompletionRequest) ParseCozeApiBotIdAndUser(r *fhblade.Context) (string, string, string) {
-	// 可能是用户自定义
-	if c.Coze != nil && c.Coze.Conversation != nil && c.Coze.Conversation.BotId != "" && c.Coze.Conversation.User != "" {
-		botId := c.Coze.Conversation.BotId
-		user := c.Coze.Conversation.User
-		token := r.Request().Header("Authorization")
-		if token != "" {
-			return botId, user, token
-		}
-		cozeApiChat := config.V().Coze.ApiChat
-		botCfgs := cozeApiChat.Bots
-		for k := range botCfgs {
-			botCfg := botCfgs[k]
-			if botId == botCfg.BotId && user == botCfg.User {
-				token = botCfg.AccessToken
-				break
-			}
-		}
-		if token == "" {
-			token = cozeApiChat.AccessToken
-		}
-		return botId, user, token
-	}
-	cozeApiChat := config.V().Coze.ApiChat
-	botCfgs := cozeApiChat.Bots
-	l := len(botCfgs)
-	if l == 0 {
-		return "", "", ""
-	}
-	if l == 1 {
-		token := botCfgs[0].AccessToken
-		if token == "" {
-			token = cozeApiChat.AccessToken
-		}
-		return botCfgs[0].BotId, botCfgs[0].User, token
-	}
-
-	rand.Seed(time.Now().UnixNano())
-	index := rand.Intn(l)
-	botCfg := botCfgs[index]
-	token := botCfg.AccessToken
-	if token == "" {
-		token = cozeApiChat.AccessToken
-	}
-
-	return botCfg.BotId, botCfg.User, token
 }
 
 type NullString string

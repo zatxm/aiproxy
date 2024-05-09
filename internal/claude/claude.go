@@ -118,7 +118,7 @@ func ProxyApi() func(*fhblade.Context) error {
 					},
 				})
 			}
-			return apiToApi(c, p)
+			return apiToApi(c, p, c.Request().Header("x-auth-id"))
 		}
 
 		path = "/" + path
@@ -183,7 +183,11 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 		if &p.TopP != nil {
 			rq.TopP = p.TopP
 		}
-		return apiToApi(c, *rq)
+		reqIndex := c.Request().Header("x-auth-id")
+		if reqIndex == "" && p.Claude != nil && p.Claude.Index != "" {
+			reqIndex = p.Claude.Index
+		}
+		return apiToApi(c, *rq, reqIndex)
 	}
 
 	// 剩下的走web转api
@@ -413,10 +417,9 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 }
 
 // 通过api请求返回openai格式
-func apiToApi(c *fhblade.Context, p types.ClaudeApiCompletionRequest) error {
+func apiToApi(c *fhblade.Context, p types.ClaudeApiCompletionRequest, idSign string) error {
 	// 鉴权
-	index := c.Request().Header("x-auth-id")
-	auth, pIndex := parseAuth(c, index)
+	auth, pIndex := parseAuth(c, idSign)
 	if auth == "" {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
@@ -648,7 +651,6 @@ func parseAuth(c *fhblade.Context, index string) (string, string) {
 	return v.Val, v.ID
 }
 
-// 随机获取设置的coze bot id
 func parseClaudeWebSessionKey(c *fhblade.Context, i string) (string, string, string) {
 	auth := c.Request().Header("Authorization")
 	if auth != "" {

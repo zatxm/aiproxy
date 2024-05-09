@@ -9,8 +9,8 @@ type ClaudeCompletionRequest struct {
 }
 
 type ClaudeCompletionResponse struct {
-	Type         string              `json:"type"`
-	Index        string              `json:"index"`
+	Type         string              `json:"type,omitempty"`
+	Index        string              `json:"index,omitempty"`
 	Conversation *ClaudeConversation `json:"conversation"`
 }
 

@@ -230,13 +230,11 @@ func DoChatCompletions(c *fhblade.Context, p types.ChatCompletionRequest) error 
 	if &p.MaxTokens != nil {
 		goReq.GenerationConfig.MaxOutputTokens = p.MaxTokens
 	}
-	reqIndex := ""
-	if p.Gemini != nil && p.Gemini.Index != "" {
-		reqIndex = p.Gemini.Index
-	} else {
-		reqIndex = c.Request().Header("x-auth-id")
-	}
 	goReq.Model = p.Model
+	reqIndex := c.Request().Header("x-auth-id")
+	if reqIndex == "" && p.Gemini != nil && p.Gemini.Index != "" {
+		reqIndex = p.Gemini.Index
+	}
 	return apiToApi(c, *goReq, reqIndex)
 }
 

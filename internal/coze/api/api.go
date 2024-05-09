@@ -340,25 +340,30 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 
 // 随机获取设置的coze bot id
 func parseCozeApiBotIdAndUser(c *fhblade.Context, p types.ChatCompletionRequest) (string, string, string) {
-	// 优先取body传值再取header
+	// 优先取header再取body传值
 	token := c.Request().Header("Authorization")
 	user := c.Request().Header("x-auth-id")
 	botId := c.Request().Header("x-bot-id")
-	if p.Coze != nil && p.Coze.Conversation != nil && p.Coze.Conversation.BotId != "" && p.Coze.Conversation.User != "" {
-		botId = p.Coze.Conversation.BotId
-		user = p.Coze.Conversation.User
-	}
-
-	// 全部有值就返回了
+	// 头部全部有值就返回了
 	if token != "" && user != "" && botId != "" {
 		if strings.HasPrefix(token, "Bearer ") {
 			token = strings.TrimPrefix(token, "Bearer ")
 		}
 		return botId, user, token
 	}
+	if p.Coze != nil && p.Coze.Conversation != nil && p.Coze.Conversation.BotId != "" && p.Coze.Conversation.User != "" {
+		botId = p.Coze.Conversation.BotId
+		user = p.Coze.Conversation.User
+	}
 
 	// 根据user和botId查找配置
 	if user != "" && botId != "" {
+		if token != "" {
+			if strings.HasPrefix(token, "Bearer ") {
+				token = strings.TrimPrefix(token, "Bearer ")
+			}
+			return botId, user, token
+		}
 		cozeApiChatCfg := config.V().Coze.ApiChat
 		botCfgs := cozeApiChatCfg.Bots
 		exist := false

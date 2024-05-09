@@ -5,8 +5,8 @@ type GeminiCompletionRequest struct {
 }
 
 type GeminiCompletionResponse struct {
-	Type  string `json:"type"`
-	Index string `json:"index"`
+	Type  string `json:"type,omitempty"`
+	Index string `json:"index,omitempty"`
 }
 
 // 流式响应模型对话，省略部分不常用参数

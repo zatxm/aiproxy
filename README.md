@@ -167,7 +167,41 @@ provider参数说明如下：
   ```
 
 * **coze**：支持discord和api,走api时model传coze-api
-* **claude**：目前支持claude web chat,后续加入api to api
+
+  额外参数
+
+  ```
+  {
+      ...
+      "coze": {
+          "conversation": {
+              "type": "api",
+              "bot_id": "xxxx",
+              "conversation_id": "xxx",
+              "user": "xxx"
+          }
+      }
+  }
+  ```
+
+  * discord只支持一次性对话
+  * api通信时，user为标识ID,bot_id为coze app ID,头部x-auth-id对应user,x-bot-id对应bot_id，头部优先鉴权
+
+  额外返回：
+
+  ```
+  {
+      ...
+      "coze": {
+          "type": "api",
+          "bot_id": "xxxx",
+          "conversation_id": "xxx",
+          "user": "xxx"
+      }
+  }
+  ```
+
+* **claude**：支持web和api
 
   额外参数
 

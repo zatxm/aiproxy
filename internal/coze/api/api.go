@@ -193,7 +193,7 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 			},
 		})
 	}
-	botId, user, token := parseCozeApiBotIdAndUser(c, p)
+	botId, user, token := parseAuth(c, p)
 	if botId == "" || user == "" || token == "" {
 		return c.JSONAndStatus(http.StatusInternalServerError, types.ErrorResponse{
 			Error: &types.CError{
@@ -304,7 +304,7 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 				flusher.Flush()
 				break
 			}
-			if chatRes.Message.CType == "answer" && chatRes.Message.Content != "" {
+			if chatRes.Message.Type == "answer" && chatRes.Message.Content != "" {
 				var choices []*types.ChatCompletionChoice
 				choices = append(choices, &types.ChatCompletionChoice{
 					Index: chatRes.Index,
@@ -320,7 +320,7 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 					Model:   ApiChatModel,
 					Object:  "chat.completion.chunk",
 					Coze: &types.CozeConversation{
-						CType:          "api",
+						Type:           "api",
 						BotId:          botId,
 						ConversationId: chatRes.ConversationId,
 						User:           user,
@@ -339,7 +339,7 @@ func doApiChat(c *fhblade.Context, p types.ChatCompletionRequest) error {
 }
 
 // 随机获取设置的coze bot id
-func parseCozeApiBotIdAndUser(c *fhblade.Context, p types.ChatCompletionRequest) (string, string, string) {
+func parseAuth(c *fhblade.Context, p types.ChatCompletionRequest) (string, string, string) {
 	// 优先取header再取body传值
 	token := c.Request().Header("Authorization")
 	user := c.Request().Header("x-auth-id")

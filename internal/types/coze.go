@@ -10,7 +10,7 @@ type CozeApiChatMessage struct {
 	// 发送消息角色,user用户输入内容，assistant为Bot返回内容
 	Role string `json:"role"`
 	// 标识消息类型，主要用于区分role=assistant时Bot返回的消息
-	CType string `json:"type"`
+	Type string `json:"type"`
 	// 消息内容
 	Content string `json:"content"`
 	// 消息内容类型,一般为text
@@ -18,7 +18,7 @@ type CozeApiChatMessage struct {
 }
 
 type CozeConversation struct {
-	CType string `json:"type,omitempty"`
+	Type string `json:"type,omitempty"`
 	// 要进行会话聊天的Bot ID
 	BotId string `json:"bot_id"`
 	// 对话标识,需自己生成

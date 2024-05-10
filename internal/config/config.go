@@ -9,15 +9,15 @@ import (
 var cfg *Config
 
 type Config struct {
-	Port      string     `yaml:"port"`
-	HttpsInfo *httpsInfo `yaml:"https_info"`
-	HarsPath  string     `yaml:"hars_path"`
-	ProxyUrl  string     `yaml:"proxy_url"`
-	Gemini    *gemini    `yaml:"google_gemini"`
-	Arkose    *arkose    `yaml:"arkose"`
-	Bing      *bing      `yaml:"bing"`
-	Coze      *coze      `yaml:"coze"`
-	Claude    *claude    `yaml:"claude"`
+	Port      string    `yaml:"port"`
+	HttpsInfo httpsInfo `yaml:"https_info"`
+	HarsPath  string    `yaml:"hars_path"`
+	ProxyUrl  string    `yaml:"proxy_url"`
+	Gemini    gemini    `yaml:"google_gemini"`
+	Arkose    arkose    `yaml:"arkose"`
+	Bing      bing      `yaml:"bing"`
+	Coze      coze      `yaml:"coze"`
+	Claude    claude    `yaml:"claude"`
 }
 
 type httpsInfo struct {
@@ -27,9 +27,9 @@ type httpsInfo struct {
 }
 
 type gemini struct {
-	ProxyUrl string          `yaml:"proxy_url"`
-	Model    string          `yaml:"model"`
-	ApiKeys  []*geminiApiKey `yaml:"api_keys"`
+	ProxyUrl string         `yaml:"proxy_url"`
+	Model    string         `yaml:"model"`
+	ApiKeys  []geminiApiKey `yaml:"api_keys"`
 }
 
 type geminiApiKey struct {
@@ -50,9 +50,9 @@ type bing struct {
 }
 
 type coze struct {
-	ProxyUrl string       `yaml:"proxy_url"`
-	Discord  *cozeDiscord `yaml:"discord"`
-	ApiChat  *cozeApiChat `yaml:"api_chat"`
+	ProxyUrl string      `yaml:"proxy_url"`
+	Discord  cozeDiscord `yaml:"discord"`
+	ApiChat  cozeApiChat `yaml:"api_chat"`
 }
 
 type cozeDiscord struct {
@@ -67,8 +67,8 @@ type cozeDiscord struct {
 }
 
 type cozeApiChat struct {
-	AccessToken string        `yaml:"access_token"`
-	Bots        []*cozeApiBot `yaml:"bots"`
+	AccessToken string       `yaml:"access_token"`
+	Bots        []cozeApiBot `yaml:"bots"`
 }
 
 type cozeApiBot struct {
@@ -78,10 +78,10 @@ type cozeApiBot struct {
 }
 
 type claude struct {
-	ProxyUrl    string          `yaml:"proxy_url"`
-	ApiVersion  string          `yaml:"api_version"`
-	WebSessions []*websession   `yaml:"web_sessions"`
-	ApiKeys     []*claudeApiKey `yaml:"api_keys"`
+	ProxyUrl    string         `yaml:"proxy_url"`
+	ApiVersion  string         `yaml:"api_version"`
+	WebSessions []websession   `yaml:"web_sessions"`
+	ApiKeys     []claudeApiKey `yaml:"api_keys"`
 }
 
 type websession struct {

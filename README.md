@@ -8,10 +8,10 @@ golang版ai chat工具集成，目前支持openai、bing、claude、gemini和coz
 **1. 源码构造**
 
 ```
-git clone https://github.com/zatxm/any-proxy
+git clone https://github.com/zatxm/aiproxy
 cd any-proxy
-go build -ldflags "-s -w" -o anyproxy cmd/main.go
-./anyproxy -c /whereis/c.yaml
+go build -ldflags "-s -w" -o aiproxy cmd/main.go
+./aiproxy -c /whereis/c.yaml
 ```
 
 **2. docker**
@@ -19,8 +19,8 @@ go build -ldflags "-s -w" -o anyproxy cmd/main.go
 * 本地构建
 
 ```
-git clone https://github.com/zatxm/any-proxy
-cd any-proxy
+git clone https://github.com/zatxm/aiproxy
+cd aiproxy
 docker build -t zatxm120/aiproxy . # 镜像名称可以自行定义
 ```
 
@@ -41,23 +41,23 @@ docker run -d --name aiproxy --restart always -p 8084:8999 -v /your-app-data:/an
 ## 配置说明
 **1. 创建数据目录**
 
-假设放在/opt/anyproxy目录上，目录根据自己需求创建
+假设放在/opt/aiproxy目录上，目录根据自己需求创建
 
 ```
-mkdir -p /opt/anyproxy/ssl #放置https证书
-mkdir -p /opt/anyproxy/cookies #放置openai chat登录cookie文件
-mkdir -p /opt/anyproxy/hars #放置openai登录har
-mkdir -p /opt/anyproxy/pics #放置验证码，一般没用到
-mkdir -p /opt/anyproxy/etc #配置文件目录，配置文件复制到该目录
+mkdir -p /opt/aiproxy/ssl #放置https证书
+mkdir -p /opt/aiproxy/cookies #放置openai chat登录cookie文件
+mkdir -p /opt/aiproxy/hars #放置openai登录har
+mkdir -p /opt/aiproxy/pics #放置验证码，一般没用到
+mkdir -p /opt/aiproxy/etc #配置文件目录，配置文件复制到该目录
 ```
 **2. 配置文件c.yaml**
 
-源码中的etc/c.yaml为配置实例，复制到/opt/anyproxy/etc目录下修改
+源码中的etc/c.yaml为配置实例，复制到/opt/aiproxy/etc目录下修改
 
 **3. docker映射目录**
 
 ```
-docker run -d --name aiproxy --restart always -p 8084:8999 -v /opt/anyproxy:/anp/data zatxm120/aiproxy
+docker run -d --name aiproxy --restart always -p 8084:8999 -v /opt/aiproxy:/anp/data zatxm120/aiproxy
 ```
 
 ## 接口应用说明
@@ -283,7 +283,7 @@ provider参数说明如下：
   }
   ```
 
-  * arkose_token，不传自动生成，可能会出验证码
+  * arkose_token，不传自动生成，可能会出验证码，自动解析你需要官网登录后下载har文件放到类似/opt/aiproxy/hars目录下
   * reset，默认不传为false，会根据上次成功获取token保存cookie，根据cookie刷新token，传true重新获取
 
 **3. claude相关接口**

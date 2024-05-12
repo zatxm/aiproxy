@@ -45,6 +45,7 @@ docker run -d --name myproxy --restart always -p 8084:8999 -v /your-app-data:/an
 
 ```
 mkdir -p /opt/anyproxy/ssl #放置https证书
+mkdir -p /opt/anyproxy/cookies #放置openai chat登录cookie文件
 mkdir -p /opt/anyproxy/hars #放置openai登录har
 mkdir -p /opt/anyproxy/pics #放置验证码，一般没用到
 mkdir -p /opt/anyproxy/etc #配置文件目录，配置文件复制到该目录
@@ -245,30 +246,45 @@ provider参数说明如下：
 
 **2. openai相关接口**
 
-* post /backend-anon/web2api，web转api
-* post /backend-api/web2api，web转api
+* **post /backend-anon/web2api**，web转api
+* **post /backend-api/web2api**，web转api
 
   ```
   通信请求数据如下：
   {
-      "action":"next",
-      "messages":[{
-          "id":"aaa2e4da-d561-458e-b731-e3390c08d8f7",
-          "author":{"role":"user"},
-          "content":{
-              "content_type":"text",
-              "parts":["你是谁？"]
+      "action": "next",
+      "messages": [{
+          "id": "aaa2e4da-d561-458e-b731-e3390c08d8f7",
+          "author": {"role": "user"},
+          "content": {
+              "content_type": "text",
+              "parts": ["你是谁？"]
           },
-          "metadata":{}
+          "metadata": {}
       }],
-      "parent_message_id":"aaa18093-c3ec-4528-bb92-750c0f85918f",
-      "model":"text-davinci-002-render-sha",
-      "timezone_offset_min":-480,
-      "history_and_training_disabled":false,
-      "conversation_mode":{"kind":"primary_assistant"},
-      "websocket_request_id":"bf740f5f-2335-4903-94df-4003819fdade"
+      "parent_message_id": "aaa18093-c3ec-4528-bb92-750c0f85918f",
+      "model": "text-davinci-002-render-sha",
+      "timezone_offset_min": -480,
+      "history_and_training_disabled": false,
+      "conversation_mode": {"kind": "primary_assistant"},
+      "websocket_request_id": "bf740f5f-2335-4903-94df-4003819fdade"
   }
   ```
+
+* **post /auth/token/web**，openai chat web登录获取token
+
+  ```
+  通信请求数据如下：
+  {
+      "email": "my@email.com",
+      "password": "123456",
+      "arkose_token": "xxxx",
+      "reset": true
+  }
+  ```
+
+  * arkose_token，不传自动生成，可能会出验证码
+  * reset，默认不传为false，会根据上次成功获取token保存cookie，根据cookie刷新token，传true重新获取
 
 **3. claude相关接口**
 

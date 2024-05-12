@@ -69,8 +69,8 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 		defer client.CPool.Put(gClient)
 		goProxy := httputil.ReverseProxy{
 			Director: func(req *http.Request) {
-				req.Host = "chat.openai.com"
-				req.URL.Host = "chat.openai.com"
+				req.Host = cst.ChatHost
+				req.URL.Host = cst.ChatHost
 				req.URL.Scheme = "https"
 				req.URL.Path = path
 				req.URL.RawQuery = query

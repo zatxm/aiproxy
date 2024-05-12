@@ -12,10 +12,17 @@ https_info :
     key_file: /anp/data/ssl/my.key
 
 # har文件目录,强烈建议加上,为了获取arkose token
-hars_path : /anp/data/hars
+hars_path: /anp/data/hars
 
 # 代理url
 # proxy_url: http://127.0.0.1:1081
+
+# openai设置
+openai:
+    # 登录设置代理
+    # auth_proxy_url: http://127.0.0.1:1081
+    # web登录后放置cookie的文件夹
+    cookie_path: /anp/data/cookies
 
 # 谷歌gemini接口
 # https://makersuite.google.com/app/apikey申请

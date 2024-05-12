@@ -13,6 +13,7 @@ type Config struct {
 	HttpsInfo httpsInfo `yaml:"https_info"`
 	HarsPath  string    `yaml:"hars_path"`
 	ProxyUrl  string    `yaml:"proxy_url"`
+	Openai    openai    `yaml:"openai"`
 	Gemini    gemini    `yaml:"google_gemini"`
 	Arkose    arkose    `yaml:"arkose"`
 	Bing      bing      `yaml:"bing"`
@@ -24,6 +25,11 @@ type httpsInfo struct {
 	Enable  bool   `yaml:"enable"`
 	PemFile string `yaml:"pem_file"`
 	KeyFile string `yaml:"key_file"`
+}
+
+type openai struct {
+	AuthProxyUrl string `yaml:"auth_proxy_url"`
+	CookiePath   string `yaml:"cookie_path"`
 }
 
 type gemini struct {
@@ -112,6 +118,10 @@ func Parse(filename string) (*Config, error) {
 
 func ProxyUrl() string {
 	return cfg.ProxyUrl
+}
+
+func OpenaiAuthProxyUrl() string {
+	return cfg.Openai.AuthProxyUrl
 }
 
 func GeminiProxyUrl() string {

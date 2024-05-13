@@ -6,9 +6,9 @@ RUN go build -ldflags "-s -w" -o main cmd/main.go
 RUN cd /go/src/anp \
     && apt update \
     && apt install xz-utils \
-    && wget https://github.com/upx/upx/releases/download/v4.2.3/upx-4.2.3-amd64_linux.tar.xz \
-    && tar -xf upx-4.2.3-amd64_linux.tar.xz \
-    && cp upx-4.2.3-amd64_linux/upx upx \
+    && wget https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-$(go env GOARCH)_linux.tar.xz \
+    && tar -xf upx-4.2.4-$(go env GOARCH)_linux.tar.xz \
+    && cp upx-4.2.4-$(go env GOARCH)_linux/upx upx \
     && ./upx --best main
 FROM gcr.io/distroless/static-debian12
 MAINTAINER Tu

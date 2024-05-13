@@ -1,31 +1,39 @@
-name: Docker Image CI
+name: Publish Docker image
 
 on:
   push:
     tags:
-    - 'v*'
+      - '**'
 
 jobs:
-
-  build:
-
+  publish:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Get version
-      id: get_version
-      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build -t zatxm120/aiproxy .
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - name: Push Docker image to Docker Hub
-      run: |
-        docker tag zatxm120/aiproxy:latest zatxm120/aiproxy:${{ steps.get_version.outputs.VERSION }}
-        docker push zatxm120/aiproxy:${{ steps.get_version.outputs.VERSION }}
-        docker tag zatxm120/aiproxy:${{ steps.get_version.outputs.VERSION }} zatxm120/aiproxy:latest
-        docker push zatxm120/aiproxy:latest
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get metadata for Docker
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            zatxm120/aiproxy
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}

@@ -134,8 +134,12 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 		}
 	}
 
+	webChatUrl := config.OpenaiChatWebUrl()
+	if webChatUrl == "" {
+		webChatUrl = cst.ChatOriginUrl
+	}
 	// anon token
-	requirementsUrl := chatCfg["requirementsUrl"]
+	requirementsUrl := webChatUrl + chatCfg["requirementsPath"]
 	req, err := http.NewRequest(http.MethodPost, requirementsUrl, nil)
 	if err != nil {
 		fhblade.Log.Error("chat-requirements new req err",
@@ -217,7 +221,7 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 	p.ForceRateLimit = false
 	p.WebsocketRequestId = uuid.NewString()
 	reqJson, _ := fhblade.Json.Marshal(p)
-	chatUrl := chatCfg["askUrl"]
+	chatUrl := webChatUrl + chatCfg["askPath"]
 	req, err = http.NewRequest(http.MethodPost, chatUrl, bytes.NewReader(reqJson))
 	if err != nil {
 		client.CcPool.Put(gClient)

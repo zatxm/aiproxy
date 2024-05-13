@@ -30,6 +30,7 @@ type httpsInfo struct {
 type openai struct {
 	AuthProxyUrl string `yaml:"auth_proxy_url"`
 	CookiePath   string `yaml:"cookie_path"`
+	ChatWebUrl   string `yaml:"chat_web_url"`
 }
 
 type gemini struct {
@@ -138,4 +139,8 @@ func ClaudeProxyUrl() string {
 
 func CozeProxyUrl() string {
 	return cfg.Coze.ProxyUrl
+}
+
+func OpenaiChatWebUrl() string {
+	return cfg.Openai.ChatWebUrl
 }

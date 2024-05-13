@@ -37,12 +37,12 @@ var (
 	OaiDeviceId = uuid.NewString()
 	ChatAskMap  = map[string]map[string]string{
 		"backend-anon": map[string]string{
-			"requirementsUrl": "https://chatgpt.com/backend-anon/sentinel/chat-requirements",
-			"askUrl":          "https://chatgpt.com/backend-anon/conversation",
+			"requirementsPath": "/backend-anon/sentinel/chat-requirements",
+			"askPath":          "/backend-anon/conversation",
 		},
 		"backend-api": map[string]string{
-			"requirementsUrl": "https://chatgpt.com/backend-api/sentinel/chat-requirements",
-			"askUrl":          "https://chatgpt.com/backend-api/conversation",
+			"requirementsPath": "/backend-api/sentinel/chat-requirements",
+			"askPath":          "/backend-api/conversation",
 		},
 	}
 )

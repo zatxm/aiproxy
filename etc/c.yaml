@@ -23,6 +23,10 @@ openai:
     # auth_proxy_url: http://127.0.0.1:1081
     # web登录后放置cookie的文件夹
     cookie_path: /anp/data/cookies
+    # openai web chat url，可以修改为任意代理地址
+    # 不设置默认官方https://chatgpt.com容易出盾
+    # 目前chat.openai.com还能用，建议设置成这个
+    chat_web_url: https://chat.openai.com
 
 # 谷歌gemini接口
 # https://makersuite.google.com/app/apikey申请

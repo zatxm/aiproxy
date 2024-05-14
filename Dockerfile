@@ -16,6 +16,7 @@ WORKDIR /anp
 ADD . /anp/data/ssl
 ADD . /anp/data/hars
 ADD . /anp/data/pics
+ADD . /anp/data/cookies
 COPY --from=0 /go/src/anp/main /anp/
 COPY --from=0 /go/src/anp/etc /anp/data/etc
 ENTRYPOINT ["/anp/main", "-c", "/anp/data/etc/c.yaml"]

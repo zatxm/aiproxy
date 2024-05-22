@@ -95,14 +95,29 @@ provider参数说明如下：
           "conversation": {
               "conversation_id": "697b28e8-e228-4abb-b356-c8ccdccf82f3",
               "index": "1000001",
-              "parent_message_id": "dd6d9561-bebe-42da-91c6-f8fde6b105d9",
-              "last_message_id": "9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
-          }
+              "parent_message_id": "dd6d9561-bebe-42da-91c6-f8fde6b105d9"
+          },
+          "message_id": "697b28e8-e228-4abb-b356-c8ccdccf82f4",
+          "arkose_token": "arkose token"
       }
   }
   ```
   * index为密钥ID,头部x-auth-id优先级高于index
   * 表示在同一会话基础上进行对话，此值在任一对话通信后会返回
+
+  额外返回：
+
+  ```
+  {
+      ...
+      "openai": {
+          "conversation_id": "697b28e8-e228-4abb-b356-c8ccdccf82f3",
+          "index": "1000001",
+          "parent_message_id": "dd6d9561-bebe-42da-91c6-f8fde6b105d9",
+          "last_message_id": "9017f85d-8cd3-46a8-a88a-2eb7f4c099ea"
+      }
+  }
+  ```
 
 * **gemini**：谷歌gemini pro
 

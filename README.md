@@ -27,7 +27,7 @@ docker build -t zatxm120/aiproxy . # 镜像名称可以自行定义
 * docker库
 
 ```
-docker pull zatxm120/aiproxy //不再维护zatxm120/myproxy，后续删除
+docker pull zatxm120/aiproxy
 ```
 
 * 启用

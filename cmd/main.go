@@ -89,18 +89,14 @@ func main() {
 	app.Any("/public-api/*path", oapi.DoWeb("public-api"))
 
 	// 免登录chat会话
-	app.Post("/backend-anon/conversation", oapi.DoAnon())
+	app.Post("/backend-anon/conversation", oapi.DoAnonOrigin())
 	app.Post("/backend-anon/web2api", func(c *fhblade.Context) error {
 		return oapi.DoWebToApi(c, "backend-anon")
 	})
 
-	// middleware - check authorization
+	// middleware
 	app.Use(func(next fhblade.Handler) fhblade.Handler {
 		return func(c *fhblade.Context) error {
-			authorization := c.Request().Header("Authorization")
-			if authorization == "" {
-				return c.JSONAndStatus(http.StatusUnauthorized, fhblade.H{"errorMessage": "please provide a valid access token or api key in 'Authorization' header"})
-			}
 			// cors
 			c.Response().SetHeader("Access-Control-Allow-Origin", "*")
 			c.Response().SetHeader("Access-Control-Allow-Headers", "*")

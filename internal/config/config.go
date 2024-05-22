@@ -28,9 +28,11 @@ type httpsInfo struct {
 }
 
 type openai struct {
-	AuthProxyUrl string `yaml:"auth_proxy_url"`
-	CookiePath   string `yaml:"cookie_path"`
-	ChatWebUrl   string `yaml:"chat_web_url"`
+	AuthProxyUrl string      `yaml:"auth_proxy_url"`
+	CookiePath   string      `yaml:"cookie_path"`
+	ChatWebUrl   string      `yaml:"chat_web_url"`
+	ApiKeys      []ApiKeyMap `yaml:"api_keys"`
+	WebSessions  []ApiKeyMap `yaml:"web_sessions"`
 }
 
 type gemini struct {
@@ -85,21 +87,16 @@ type cozeApiBot struct {
 }
 
 type claude struct {
-	ProxyUrl    string         `yaml:"proxy_url"`
-	ApiVersion  string         `yaml:"api_version"`
-	WebSessions []websession   `yaml:"web_sessions"`
-	ApiKeys     []claudeApiKey `yaml:"api_keys"`
+	ProxyUrl    string      `yaml:"proxy_url"`
+	ApiVersion  string      `yaml:"api_version"`
+	WebSessions []ApiKeyMap `yaml:"web_sessions"`
+	ApiKeys     []ApiKeyMap `yaml:"api_keys"`
 }
 
-type websession struct {
+type ApiKeyMap struct {
 	ID             string `yaml:"id"`
 	Val            string `yaml:"val"`
-	OrganizationId string `yaml:"organization_id"`
-}
-
-type claudeApiKey struct {
-	ID  string `yaml:"id"`
-	Val string `yaml:"val"`
+	OrganizationId string `yaml:"organization_id,omitempty"`
 }
 
 func V() *Config {

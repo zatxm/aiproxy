@@ -27,6 +27,21 @@ openai:
     # 不设置默认官方https://chatgpt.com容易出盾
     # 目前chat.openai.com还能用，建议设置成这个
     chat_web_url: https://chat.openai.com
+    # api密钥
+    api_keys:
+        -
+            # 密钥标识，可通过头部传递x-auth-id识别
+            id: 10001
+            # 密钥
+            val: sk-proj-HduBcfGGimFxxxxgohfUZCXKm
+    # web chat token
+    # 通过登录https://chatgpt.com/api/auth/session获取
+    web_sessions:
+        -
+            # 密钥标识，可通过头部传递x-auth-id识别
+            id: 10001
+            # accessToken
+            val: eyJhbGciOiJSUzxxxe5w50h7ls7rIf4onG59fIFCJAwsoyyvjq7KUrI3nI7lwA
 
 # 谷歌gemini接口
 # https://makersuite.google.com/app/apikey申请

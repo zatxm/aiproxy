@@ -45,7 +45,7 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 		yPath := c.Get("path")
 		// 提问问题，专门处理
 		if yPath == "conversation" && c.Request().Method() == "POST" {
-			return DoAsk(c, tag)
+			return DoAskOrigin(c, tag)
 		}
 		if yPath == "web2api" && c.Request().Method() == "POST" {
 			return DoWebToApi(c, tag)
@@ -82,7 +82,7 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 	}
 }
 
-func DoAsk(c *fhblade.Context, tag string) error {
+func DoAskOrigin(c *fhblade.Context, tag string) error {
 	// 参数
 	var p types.OpenAiCompletionChatRequest
 	if err := c.ShouldBindJSON(&p); err != nil {
@@ -94,12 +94,12 @@ func DoAsk(c *fhblade.Context, tag string) error {
 			},
 		})
 	}
-	auth := c.Request().Header("Authorization")
+	auth, index := parseAuth(c, "web", "")
 	resp, code, err := askConversationWebHttp(p, tag, auth)
 	if err != nil {
 		return c.JSONAndStatus(code, err)
 	}
-	return handleOriginStreamData(c, resp)
+	return handleOriginStreamData(c, resp, index)
 }
 
 func DoWebToApi(c *fhblade.Context, tag string) error {
@@ -114,12 +114,12 @@ func DoWebToApi(c *fhblade.Context, tag string) error {
 			},
 		})
 	}
-	auth := c.Request().Header("Authorization")
+	auth, index := parseAuth(c, "web", "")
 	resp, code, err := askConversationWebHttp(p, tag, auth)
 	if err != nil {
 		return c.JSONAndStatus(code, err)
 	}
-	return handleV1StreamData(c, resp)
+	return handleV1StreamData(c, resp, index)
 }
 
 func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string) (*http.Response, int, *types.ErrorResponse) {
@@ -275,9 +275,12 @@ func askConversationWebHttp(p types.OpenAiCompletionChatRequest, mt, auth string
 	return resp, resp.StatusCode, nil
 }
 
-func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
+func handleOriginStreamData(c *fhblade.Context, resp *http.Response, index string) error {
 	defer resp.Body.Close()
 	if strings.Contains(resp.Header.Get("Content-Type"), "event-stream") {
+		if index != "" {
+			c.Response().SetHeader("x-auth-id", index)
+		}
 		return c.Reader(resp.Body)
 	}
 	rw := c.Response().Rw()
@@ -369,6 +372,9 @@ func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
 	header.Set("Cache-Control", "no-cache")
 	header.Set("Connection", "keep-alive")
 	header.Set("Access-Control-Allow-Origin", "*")
+	if index != "" {
+		header.Set("x-auth-id", index)
+	}
 	rw.WriteHeader(200)
 
 	cancle := make(chan struct{})
@@ -426,7 +432,7 @@ func handleOriginStreamData(c *fhblade.Context, resp *http.Response) error {
 	return nil
 }
 
-func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
+func handleV1StreamData(c *fhblade.Context, resp *http.Response, index string) error {
 	defer resp.Body.Close()
 	rw := c.Response().Rw()
 	flusher, ok := rw.(http.Flusher)
@@ -497,6 +503,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 							Object:  "chat.completion.chunk",
 							OpenAi: &types.OpenAiConversation{
 								ID:              chatRes.ConversationID,
+								Index:           index,
 								ParentMessageId: chatRes.Message.Metadata.ParentId,
 								LastMessageId:   chatRes.Message.ID,
 							},
@@ -695,7 +702,7 @@ func handleV1StreamData(c *fhblade.Context, resp *http.Response) error {
 	return nil
 }
 
-func DoAnon() func(*fhblade.Context) error {
+func DoAnonOrigin() func(*fhblade.Context) error {
 	return func(c *fhblade.Context) error {
 		// 参数
 		var p types.OpenAiCompletionChatRequest
@@ -712,7 +719,7 @@ func DoAnon() func(*fhblade.Context) error {
 		if err != nil {
 			return c.JSONAndStatus(code, err)
 		}
-		return handleOriginStreamData(c, resp)
+		return handleOriginStreamData(c, resp, "")
 	}
 }
 
@@ -799,7 +806,11 @@ func DoChatCompletionsByWeb(c *fhblade.Context, p types.ChatCompletionRequest) e
 	if p.OpenAi.ArkoseToken != "" {
 		rp.ArkoseToken = p.OpenAi.ArkoseToken
 	}
-	auth := c.Request().Header("Authorization")
+	reqIndex := ""
+	if p.OpenAi != nil && p.OpenAi.Conversation != nil {
+		reqIndex = p.OpenAi.Conversation.Index
+	}
+	auth, index := parseAuth(c, "web", reqIndex)
 	mt := "backend-api"
 	if auth == "" {
 		mt = "backend-anon"
@@ -808,5 +819,5 @@ func DoChatCompletionsByWeb(c *fhblade.Context, p types.ChatCompletionRequest) e
 	if err != nil {
 		return c.JSONAndStatus(code, err)
 	}
-	return handleV1StreamData(c, resp)
+	return handleV1StreamData(c, resp, index)
 }

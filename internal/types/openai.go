@@ -226,6 +226,7 @@ type OpenAiCompletionRequest struct {
 
 type OpenAiConversation struct {
 	ID              string `json:"conversation_id"`
+	Index           string `json:"index,omitempty"`
 	ParentMessageId string `json:"parent_message_id"`
 	LastMessageId   string `json:"last_message_id"`
 }

@@ -9,7 +9,7 @@ golang版ai chat工具集成，目前支持openai、bing、claude、gemini和coz
 
 ```
 git clone https://github.com/zatxm/aiproxy
-cd any-proxy
+cd aiproxy
 go build -ldflags "-s -w" -o aiproxy cmd/main.go
 ./aiproxy -c /whereis/c.yaml
 ```

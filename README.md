@@ -246,6 +246,10 @@ provider参数说明如下：
 
 **2. openai相关接口**
 
+* **转发/public-api/\*path**
+* **转发/backend-api/\*path**
+* **转发/dashboard/\*path**
+* **转发/v1/\*path**
 * **post /backend-anon/web2api**，web转api
 * **post /backend-api/web2api**，web转api
 

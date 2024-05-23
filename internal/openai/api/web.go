@@ -65,12 +65,18 @@ func DoWeb(tag string) func(*fhblade.Context) error {
 			"oai-language":  {cst.OaiLanguage},
 			"user-agent":    {vars.UserAgent},
 		}
+		urlHost := cst.ChatHost
+		webChatUrl := config.OpenaiChatWebUrl()
+		if webChatUrl != "" {
+			urlHost = strings.TrimPrefix(webChatUrl, "https://")
+			urlHost = strings.TrimPrefix(urlHost, "http://")
+		}
 		gClient := client.CPool.Get().(tlsClient.HttpClient)
 		defer client.CPool.Put(gClient)
 		goProxy := httputil.ReverseProxy{
 			Director: func(req *http.Request) {
-				req.Host = cst.ChatHost
-				req.URL.Host = cst.ChatHost
+				req.Host = urlHost
+				req.URL.Host = urlHost
 				req.URL.Scheme = "https"
 				req.URL.Path = path
 				req.URL.RawQuery = query

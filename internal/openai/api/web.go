@@ -34,8 +34,8 @@ const (
 )
 
 var (
-	cores           = []int{8, 12, 16, 24}
-	screens         = []int{3000, 4000, 6000}
+	screens         = []int{3008, 4010, 6000}
+	cores           = []int{1, 2, 4}
 	timeLocation, _ = time.LoadLocation("Asia/Shanghai")
 	timeLayout      = "Mon Jan 2 2006 15:04:05"
 )
@@ -723,23 +723,29 @@ func DoAnonOrigin() func(*fhblade.Context) error {
 	}
 }
 
-func parseNowTime() string {
+func GenerateProofToken(seed string, diff string) string {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	core := cores[rand.Intn(3)]
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	screen := screens[rand.Intn(3)] + core
 	now := time.Now()
 	now = now.In(timeLocation)
-	return now.Format(timeLayout) + " GMT+0800 (中国标准时间)"
-}
-
-func parseProofTokenConfig() []interface{} {
+	parseTime := now.Format(timeLayout) + " GMT+0800 (中国标准时间)"
+	reacts := []string{"_reactListeningcfilawjnerp", "_reactListening9ne2dfo1i47", "_reactListening410nzwhan2a"}
 	rand.New(rand.NewSource(time.Now().UnixNano()))
-	core := cores[rand.Intn(4)]
+	react := reacts[rand.Intn(3)]
+	acts := []string{"alert", "ontransitionend", "onprogress"}
 	rand.New(rand.NewSource(time.Now().UnixNano()))
-	screen := screens[rand.Intn(3)]
-	return []interface{}{core + screen, parseNowTime(), int64(4294705152), 0, vars.UserAgent}
-}
+	act := acts[rand.Intn(3)]
+	config := []interface{}{
+		screen, parseTime,
+		nil, 0, vars.UserAgent,
+		"https://tcr9i.chat.openai.com/v2/35536E1E-65B4-4D96-9D97-6ADB7EFF8147/api.js",
+		"dpl=1440a687921de39ff5ee56b92807faaadce73f13", "en", "en-US",
+		nil,
+		"plugins−[object PluginArray]", react, act}
 
-func GenerateProofToken(seed string, diff string) string {
-	config := parseProofTokenConfig()
-	diffLen := len(diff) / 2
+	diffLen := len(diff)
 	hasher := sha3.New512()
 	for i := 0; i < 100000; i++ {
 		config[3] = i

@@ -753,7 +753,7 @@ func GenerateProofToken(seed string, diff string) string {
 
 	diffLen := len(diff)
 	hasher := sha3.New512()
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < 300000; i++ {
 		config[3] = i
 		json, _ := fhblade.Json.Marshal(config)
 		base := base64.StdEncoding.EncodeToString(json)

@@ -268,18 +268,60 @@ type OpenAiContent struct {
 }
 
 type OpenAiMetadata struct {
-	RequestId         string         `json:"request_id,omitempty"`
-	Timestamp         string         `json:"timestamp_,omitempty"`
-	FinishDetails     *FinishDetails `json:"finish_details,omitempty"`
-	Citations         []*Citation    `json:"citations,omitempty"`
-	GizmoId           any            `json:"gizmo_id,omitempty"`
-	IsComplete        bool           `json:"is_complete,omitempty"`
-	MessageType       string         `json:"message_type,omitempty"`
-	ModelSlug         string         `json:"model_slug,omitempty"`
-	DefaultModelSlug  string         `json:"default_model_slug,omitempty"`
-	Pad               string         `json:"pad,omitempty"`
-	ParentId          string         `json:"parent_id,omitempty"`
-	ModelSwitcherDeny []any          `json:"model_switcher_deny,omitempty"`
+	RequestId         string                 `json:"request_id,omitempty"`
+	Timestamp         string                 `json:"timestamp_,omitempty"`
+	FinishDetails     *FinishDetails         `json:"finish_details,omitempty"`
+	Citations         []*Citation            `json:"citations,omitempty"`
+	GizmoId           any                    `json:"gizmo_id,omitempty"`
+	IsComplete        bool                   `json:"is_complete,omitempty"`
+	AggregateResult   *OpenAiAggregateResult `json:"aggregate_result,omitempty"`
+	MessageType       string                 `json:"message_type,omitempty"`
+	ModelSlug         string                 `json:"model_slug,omitempty"`
+	DefaultModelSlug  string                 `json:"default_model_slug,omitempty"`
+	Pad               string                 `json:"pad,omitempty"`
+	ParentId          string                 `json:"parent_id,omitempty"`
+	ModelSwitcherDeny []any                  `json:"model_switcher_deny,omitempty"`
+}
+
+type OpenAiAggregateResult struct {
+	Status                string                                 `json:"status"`
+	RunId                 string                                 `json:"run_id"`
+	StartTime             float64                                `json:"start_time"`
+	UpdateTime            float64                                `json:"update_time"`
+	code                  string                                 `json:"code"`
+	EndTime               any                                    `json:"end_time"`
+	FinalExpressionOutput any                                    `json:"final_expression_output"`
+	InKernelException     any                                    `json:"in_kernel_exception"`
+	SystemException       any                                    `json:"system_exception"`
+	Messages              []*OpenAiAggregateResultMessage        `json:"messages"`
+	JupyterMessages       []*OpenAiAggregateResultJupyterMessage `json:"jupyter_messages"`
+	TimeoutTriggered      any                                    `json:"timeout_triggered"`
+}
+
+type OpenAiAggregateResultMessage struct {
+	MessageType  string  `json:"message_type"`
+	Time         float64 `json:"time"`
+	Sender       string  `json:"sender"`
+	ImagePayload any     `json:"image_payload"`
+	ImageUrl     string  `json:"image_url"`
+	Width        int     `json:"width"`
+	Height       int     `json:"height"`
+}
+
+type OpenAiAggregateResultJupyterMessage struct {
+	MsgType      string                      `json:"msg_type"`
+	ParentHeader *JupyterMessageParentHeader `json:"parent_header"`
+}
+
+type JupyterMessageParentHeader struct {
+	MsgId   string                 `json:"msg_id"`
+	Version string                 `json:"version"`
+	Content *JupyterMessageContent `json:"content,omitempty"`
+}
+
+type JupyterMessageContent struct {
+	ExecutionState string         `json:"execution_state,omitempty"`
+	Data           map[string]any `json:"JupyterMessageContentData,omitempty"`
 }
 
 type FinishDetails struct {

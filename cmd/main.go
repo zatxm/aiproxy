@@ -15,6 +15,7 @@ import (
 	"github.com/zatxm/any-proxy/internal/openai/arkose/har"
 	"github.com/zatxm/any-proxy/internal/openai/arkose/solve"
 	"github.com/zatxm/any-proxy/internal/openai/auth"
+	"github.com/zatxm/any-proxy/internal/openai/image"
 	"github.com/zatxm/fhblade"
 )
 
@@ -93,6 +94,9 @@ func main() {
 	app.Post("/backend-anon/web2api", func(c *fhblade.Context) error {
 		return oapi.DoWebToApi(c, "backend-anon")
 	})
+
+	// chatgpt web图片
+	app.Get("/gptimage/*path", image.Do())
 
 	// middleware
 	app.Use(func(next fhblade.Handler) fhblade.Handler {

@@ -32,6 +32,7 @@ type openai struct {
 	CookiePath   string      `yaml:"cookie_path"`
 	ChatWebUrl   string      `yaml:"chat_web_url"`
 	ApiKeys      []ApiKeyMap `yaml:"api_keys"`
+	ImagePath    string      `yaml:"image_path"`
 	WebSessions  []ApiKeyMap `yaml:"web_sessions"`
 }
 

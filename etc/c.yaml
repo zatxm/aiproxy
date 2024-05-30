@@ -28,6 +28,8 @@ openai:
     # 目前chat.openai.com还能用，建议设置成这个
     # 结尾不要加/
     chat_web_url: https://chat.openai.com
+    # 保存openai web图片路径,结尾不要加/
+    image_path: /anp/data/images
     # api密钥
     api_keys:
         -
